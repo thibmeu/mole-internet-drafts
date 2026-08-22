@@ -164,10 +164,12 @@ of each Endorsement, i.e., when and for whom it may later be used.
   Anchors, and the Moderator. `ctx_iss` can encode, for instance, the time
   period in which the Endorsement is issued, allowing us to capture Endorsement
   expiry.
-* The redemption context `ctx_red` is agreed out of band between the Client
-  and the Moderator. For example, it may be a long-term identity of the target
-  Moderator. This may be used to prevent Endorsement reuse across Moderators
-  without requiring a synchronized state between them.
+* The redemption context `ctx_red` is selected according to the deployment or
+  application profile. For example, a profile may fix it to a domain-separated
+  encoding of the target Moderator's long-term identity. This may prevent
+  Endorsement reuse across Moderators without requiring synchronized state
+  between them. The Client has to know `ctx_red` before issuance, but need not
+  contact the Moderator before contacting the Anchor.
 
 ## Scope
 
@@ -181,7 +183,7 @@ This document is a work in progress. This revision specifies:
   exchange, and the endorsement verification equation ({{issuance}});
 * endorsement redemption, that is, key rerandomization, the issuer-hiding
   proof over a Moderator's Anchor Set, whose size is logarithmic in that of the
-  Anchor Set, and the algorithms `Redeem` and `VerifyRedemption`
+  Anchor Set, and the algorithms `RedeemRequest` and `FinalizeRedeem`
   ({{redemption}});
 * two ciphersuites, over P-256 and ristretto255 ({{ciphersuites}}).
 
@@ -195,19 +197,16 @@ The following are **not yet specified** and are marked as such in the text:
 > Client sends the first message. In the construction specified here the Anchor
 > sends the first message, so the algorithms are named `Commit`, `Challenge`,
 > `Respond`, and `Finalize`. **TODO:** rename these in {{PROTOCOLS}}. The number
-> of HTTP exchanges (two) and the endorsement type are unchanged. For the same
-> reason the redemption algorithms are named `Redeem` and `VerifyRedemption`
-> rather than `Present` and `Verify`: this document already uses `Verify` for
+> of HTTP exchanges (two) and the endorsement type are unchanged. The redemption
+> algorithms are named `RedeemRequest` and `FinalizeRedeem` to align with the
+> Moussaka/Longfellow-shaped API. This document already uses `Verify` for
 > endorsement verification under a known key ({{verify}}), and {{ARCH}} calls
 > the operation a redemption.
 
 > **Editorial note.** This document binds an Endorsement to two contexts, an
-> *issuance context* and a *redemption context* ({{context-binding}}), whereas
-> {{PROTOCOLS}} currently defines only a single `endorsement_context`.
-> **TODO:** {{ARCH}} is expected to define both contexts and to fix their
-> encodings; until it does, this document treats them as opaque byte strings and
-> gives only non-normative examples. {{PROTOCOLS}} is then to be updated to
-> match.
+> *issuance context* and a *redemption context* ({{context-binding}}).
+> Application profiles define their encodings and can fix the redemption
+> context to a domain-separated protocol value.
 
 # Conventions and Definitions
 
@@ -239,6 +238,11 @@ and `len(x)` denotes the number of elements it holds.
 
 `I2OSP(x, xLen)` converts a nonnegative integer `x` into a byte string of
 length `xLen` in big-endian byte order, as described in {{I2OSP}}.
+Before calling `I2OSP`, an algorithm MUST validate that `x < 256^xLen`. In
+particular, every value whose length is encoded in two bytes MUST be at most
+`2^16 - 1` bytes. A received encoding that violates such a bound is malformed
+and causes a `DeserializeError`; invalid local inputs cause a `VerifyError`
+unless the algorithm defines `INVALID` as its failure output.
 
 `random(n)` returns `n` uniformly random bytes. Implementations MUST generate
 them with a cryptographically secure random number generator. It is the only
@@ -255,7 +259,8 @@ literals and do not include a terminating NUL byte.
 All algorithms are laid out in Python-like pseudocode. Each algorithm takes a
 set of inputs and parameters and produces a set of outputs. Parameters become
 constant values once the ciphersuite is fixed. An algorithm that can fail
-raises an error; the errors used in this document are listed in {{errors}}.
+raises an error, except where its output explicitly includes `INVALID`; the
+errors used in this document are listed in {{errors}}.
 
 # Preliminaries {#preliminaries}
 
@@ -390,8 +395,9 @@ known only to the Client.
 
 The Client's output is an Endorsement that is publicly verifiable under the
 Anchor's public key `pkA` ({{verify}}). The Anchor learns neither the nullifier
-nor the redemption context bound into it, and cannot link the Endorsement to
-the session that produced it.
+nor the redemption context bound into it. Under the statistical blindness claim
+in {{security-considerations}}, its cryptographic transcript does not link the
+Endorsement to the session that produced it.
 
 ## Configuration and Protocol Context {#config}
 
@@ -451,6 +457,9 @@ Errors: `DeriveError`
 
 ~~~
 def DeriveScalar(seed, info):
+  if len(info) > 2^16 - 1:
+    raise DeriveError
+
   derive_input = seed || I2OSP(len(info), 2) || info
   counter = 0
   s = 0
@@ -562,14 +571,17 @@ The Anchor publishes `SerializeElement(pkA)` in its configuration; see
 
 Each Endorsement is bound at issuance to two contexts, the issuance context and
 the redemption context, and a redemption succeeds only if the Client and the
-Moderator agree on both values. Both are opaque byte strings of at most
+Moderator use the same values. Both are opaque byte strings of at most
 `2^16 - 1` bytes, a bound that follows from the two-byte length prefixes used
-below. The two are bound by deliberately different means, reflecting who is
-trusted to choose each.
+below. An algorithm that receives a longer context MUST reject it before
+constructing a transcript. The two contexts are bound by deliberately different
+means, reflecting who is trusted to choose each.
 
-> **TODO.** {{ARCH}} is expected to fix what these two byte strings contain.
-> Until then this document treats them as opaque, and the examples below are
-> illustrative only, not normative.
+> **Editorial note.** This document treats both contexts as opaque. Application
+> profiles define their contents and encodings. A profile may fix `ctx_red` to
+> a domain-separated value shared by its Clients and Moderators before any
+> issuance. Doing so does not require a Client to contact a Moderator before
+> contacting an Anchor.
 
 The issuance context, written `ctx_iss`, restricts *when* an Endorsement may be
 redeemed; it might for example name the epoch the Endorsement was issued in.
@@ -578,6 +590,9 @@ it:
 
 ~~~
 def CreateContextBase(ctx_iss):
+  if len(ctx_iss) > 2^16 - 1:
+    raise VerifyError
+
   context_base_input =
     I2OSP(len(ctx_iss), 2) || ctx_iss ||
     "ContextBase"
@@ -602,9 +617,17 @@ bytes, in the signed message:
 
 ~~~
 def Message(nf, ctx_red):
+  if len(nf) > 2^16 - 1 or len(ctx_red) > 2^16 - 1:
+    raise VerifyError
+
   return I2OSP(len(nf), 2) || nf ||
          I2OSP(len(ctx_red), 2) || ctx_red
 ~~~
+
+`ComputeChallenge` also encodes the length of the complete `Message` in two
+bytes. It therefore rejects a message longer than `2^16 - 1` bytes. With
+`Nn = 32`, the largest usable `ctx_red` is consequently 65499 bytes, even though
+its own length field can represent up to `2^16 - 1` bytes.
 
 A redemption under a different redemption context recomputes a different
 message, for which the Client holds no valid signature. Two consequences
@@ -677,7 +700,7 @@ Parameters:
   Nseed
 ~~~
 
-Errors: `DeriveError`
+Errors: `VerifyError`, `DeriveError`
 
 ~~~
 def Commit(skA, ctx_iss):
@@ -742,6 +765,9 @@ Errors: `VerifyError`, `DeriveError`
 def Challenge(pkA, ctx_iss, ctx_red, commitment):
   (A, C) = commitment
 
+  if len(ctx_iss) > 2^16 - 1 or len(ctx_red) > 2^16 - 1:
+    raise VerifyError
+
   rand = random(Nn + 4 * Nseed)
   nf = rand[0 .. Nn]
   seeds = rand[Nn .. Nn + 4 * Nseed]
@@ -752,6 +778,8 @@ def Challenge(pkA, ctx_iss, ctx_red, commitment):
   gamma2 = DeriveScalar(Seed(seeds, 3), "gamma2")
 
   m = Message(nf, ctx_red)
+  if len(m) > 2^16 - 1:
+    raise VerifyError
   gamma = gamma1 * G.ScalarInverse(gamma2)
 
   blinded_A = G.ScalarMultGen(r1) + gamma * A
@@ -777,6 +805,9 @@ one per blinding scalar. `ComputeChallenge` is as follows.
 ~~~
 def ComputeChallenge(ctx_iss, commitment, m):
   (A, C) = commitment
+
+  if len(ctx_iss) > 2^16 - 1 or len(m) > 2^16 - 1:
+    raise VerifyError
 
   Am = G.SerializeElement(A)
   Cm = G.SerializeElement(C)
@@ -841,9 +872,10 @@ def Respond(skA, state, challenge):
   return response
 ~~~
 
-An Anchor MUST call `Respond` at most once per session state produced by
-`Commit`, and MUST destroy that state immediately afterwards. Answering two
-distinct challenges on the same state discloses the signing key: from
+Before reading session state, an Anchor MUST atomically claim and consume it.
+Only the instance that wins that claim may call `Respond`; tombstones MUST be
+retained through session expiry. Answering two distinct challenges on the same
+state discloses the signing key: from
 `s1 = a + c1 * y * skA` and `s2 = a + c2 * y * skA` with `c1 != c2`, and `y`
 revealed in the response, an attacker recovers
 `skA = (s1 - s2) * ScalarInverse((c1 - c2) * y)`. An Anchor that receives a
@@ -944,17 +976,21 @@ Parameters:
 ~~~
   Group G
   PublicInput ctx_proto
+  Nn
 ~~~
 
 ~~~
 def Verify(pkA, endorsement, ctx_iss, ctx_red):
   (c, s, y, t, nf) = endorsement
 
-  if y == 0 or c == 0:
+  if (y == 0 or c == 0 or len(nf) != Nn or
+      len(ctx_iss) > 2^16 - 1 or len(ctx_red) > 2^16 - 1):
     return false
 
   Z = CreateContextBase(ctx_iss)
   m = Message(nf, ctx_red)
+  if len(m) > 2^16 - 1:
+    return false
 
   C = G.ScalarMultGen(t) + y * Z
   A = G.ScalarMultGen(s) - (c * y) * pkA
@@ -1063,9 +1099,10 @@ Client cannot guess, and so collide with, another Client's session. An Anchor
 that receives a `ChallengeMessage` whose `session_id` does not correspond to one
 of its open sessions MUST raise a `SessionError`.
 
-The session identifier MUST NOT be bound into the challenge transcript, and it MUST NOT be an input to any algorithm in {{issuance}}. It is a value the Anchor chose and
-therefore recognises; anything the Anchor recognises that also reached the
-Endorsement would let it link a redemption back to the issuance session.
+The session identifier MUST NOT be bound into the challenge transcript, and it
+MUST NOT be an input to any algorithm in {{issuance}}. It is a value the Anchor
+chose and therefore recognises; anything the Anchor recognises that also reached
+the Endorsement would let it link a redemption back to the issuance session.
 
 
 
@@ -1102,14 +1139,14 @@ invalid Endorsement.
 
 # Endorsement Redemption {#redemption}
 
-A Client redeems an Endorsement at a Moderator. This document calls the
-operation a redemption, following {{ARCH}}, which reserves the term
-Presentation for the Credential flow; the message a Client sends is nonetheless
-carried in the `Presentation` structure of {{PROTOCOLS}} ({{redemption-wire}}).
+A Client redeems an Endorsement at a Moderator. The message a Client sends is
+carried in the `CredentialRequest` structure of {{PROTOCOLS}}
+({{redemption-wire}}).
 
-An Endorsement is single-use ({{context-binding}}), so redemption does not have
-to hide the signature: the Client reveals it, and the Moderator deduplicates on
-the nullifier. What redemption must hide is *which* Anchor issued it. The
+An Endorsement is intended for one accepted redemption in the replay scope
+defined by {{PROTOCOLS}}, so redemption does not have to hide the signature: the
+Client reveals it, and the Moderator deduplicates on the nullifier. What
+redemption must hide is *which* Anchor issued it. The
 signature of {{issuance}} verifies under one Anchor's public key, so presenting
 it against that key would name the Anchor. Instead the Client rerandomizes the
 key ({{rerandomization}}) and proves in zero knowledge that the rerandomized key
@@ -1128,30 +1165,59 @@ parties input the two contexts.
                               <--------
 
    index = the position of the Client's Anchor in anchor_set
-   redemption = Redeem(anchor_set, index, endorsement,
-                       ctx_iss, ctx_red, challenge_digest)
+   redemption = RedeemRequest(anchor_set, index, endorsement,
+                              ctx_iss, ctx_red, challenge_digest)
 
                              redemption
                               -------->
 
-              verified = VerifyRedemption(anchor_set, redemption,
-                                          ctx_iss, ctx_red,
-                                          challenge_digest)
+              nf = FinalizeRedeem(anchor_set, redemption,
+                                  ctx_iss, ctx_red,
+                                  challenge_digest)
 ~~~
 {: #fig-redemption title="Endorsement redemption overview"}
 
-`anchor_set` is the list of Anchor public keys the Moderator accepts.
-The Moderator carries it in the `Challenge` structure of {{PROTOCOLS}}, and its
-**order is significant**: proof branches are matched to keys by position. Both
-parties MUST use the same list in the same order, and a Moderator MUST reject a
-redemption whose proof is not shaped for exactly the Anchor Set it offered
-({{redemption-wire}}).
+`anchor_set` is the ordered list of Anchor public keys the Moderator accepts.
+The Moderator carries it in the `Challenge` structure of {{PROTOCOLS}}. Both
+parties MUST use the same list in the same order; otherwise proof verification
+fails. {{redemption-wire}} defines the proof vector lengths for that list.
+
+An Anchor Set is valid only if it contains between 2 and `2^16 - 1` keys,
+inclusive; no key is the identity element; and no two keys are equal. The lower
+bound preserves issuer hiding, and the upper bound ensures that its count fits
+the two-byte field in the proof transcript. Duplicate keys do not enlarge the
+anonymity set and make branch identity ambiguous, so they are rejected rather
+than assigned special semantics. The Client and Moderator MUST validate these
+conditions before any algorithm indexes or constructs a transcript from the
+set:
+
+~~~
+def ValidAnchorSet(anchor_set):
+  n = len(anchor_set)
+  if n < 2 or n > 2^16 - 1:
+    return false
+
+  seen = {}
+  for i in range(n):
+    if anchor_set[i] == G.Identity():
+      return false
+    encoded = G.SerializeElement(anchor_set[i])
+    if encoded in seen:
+      return false
+    seen.add(encoded)
+
+  return true
+~~~
+
+Wire decoding already rejects non-canonical element encodings and identity
+elements ({{wire}}). `ValidAnchorSet` additionally applies to locally configured
+sets and rejects duplicate decoded keys.
 
 `challenge_digest` binds the redemption to the challenge that triggered it. It
 is computed from the Moderator's challenge as specified in {{PROTOCOLS}}, and
-this document treats it as an opaque byte string. Note that this challenge is
-the Moderator's, and has nothing to do with the issuance challenge of
-{{challenge}}.
+is exactly 32 bytes in MoLE. An algorithm MUST reject any other length before
+constructing the proof transcript. Note that this challenge is the Moderator's,
+and has nothing to do with the issuance challenge of {{challenge}}.
 
 `index` is the position in `anchor_set` of the public key of the Anchor that
 issued the Endorsement. A Client whose Anchor does not appear in `anchor_set`
@@ -1182,12 +1248,14 @@ reconstruction of `A`:
 Every other value `Verify` recomputes is untouched, so a Moderator can check
 the signature by running `Verify` ({{verify}}) with `X_hat` in place of `pkA`.
 
-This shift is *additive*, so issuance is left
-completely unmodified and the unforgeability of {{issuance}} carries over
+This shift is *additive*, so issuance is left completely unmodified and the
+unforgeability of {{issuance}} carries over
 ({{security-considerations}}); and it is *public*, in the sense that `X_hat` on
 its own says nothing about which key it was derived from, since `delta * B` is
-uniformly distributed over the group. On its own it also proves nothing: any
-Client can produce a uniform `X_hat`. This is why the client must additionally provide an issuer-hiding proof.
+uniformly distributed over the group. Because any Client can produce a uniform
+`X_hat`, it does not demonstrate that the key is a rerandomization of an
+accepted Anchor key. The Client therefore also proves knowledge of `delta` for
+one key in the Anchor Set without revealing which one.
 
 ## The Issuer-Hiding Proof {#issuer-proof}
 
@@ -1213,7 +1281,9 @@ and switching between them changes neither issuance nor {{verify}}.
 Each branch is the discrete logarithm proof of {{SIGMA}}, and the composition
 below could be expressed in that framework. It is written out here instead, so
 that this document fixes the transcript and the encodings without depending on
-work in progress. **TODO:** revisit once {{SIGMA}} is stable.
+work in progress.
+
+> **TODO:** Revisit once {{SIGMA}} is stable.
 
 Throughout this section and its subsections, `x / y` denotes integer division
 of nonnegative integers, that is the quotient rounded down, and `x mod y` the
@@ -1234,7 +1304,7 @@ A single branch is proved by the usual three moves: the Client draws a nonce
 answers `z = r - c * delta`; and the verifier checks that
 `T = c * Y[index] + z * B`.
 
-Read the other way round, that check *determines* the commitment from the
+Read the other way around, this check determines the commitment from the
 challenge and the response:
 
 ~~~
@@ -1404,6 +1474,11 @@ A padded leaf therefore holds the same value as leaf `n - 1`, which both parties
 compute the same way, whether or not `n - 1` is the branch the Client answered.
 Padding adds neither an Anchor to the Anchor Set nor information to the proof.
 
+> **Editorial note. TODO:** Investigate an incomplete-tree construction that
+> avoids the next-power-of-two work for non-power-of-two Anchor Sets. This
+> revision deliberately specifies padding so that the construction remains
+> simple and fully defined.
+
 ### Challenge Computation {#proof-challenge}
 
 The Fiat-Shamir challenge covers the whole statement -- the Anchor Set, the
@@ -1442,15 +1517,20 @@ def ComputeProofChallenge(anchor_set, X_hat, endorsement, ctx_iss,
   return G.HashToScalar(proof_transcript)
 ~~~
 
-`n` is prefixed and `Element` encodings are fixed-length, so
-`anchor_set_enc` and `ck_enc` are unambiguous without length prefixes of their
-own; `q`, and with it
-the number of commitment keys, is determined by `n`. The label `"IssuerProof"`
-separates this transcript from the issuance transcript of {{challenge}}, which
-is hashed with the same function.
+`n` is prefixed and `Element` encodings are fixed-length, so `anchor_set_enc`
+and `ck_enc` are unambiguous without length prefixes of their own; `q`, and with
+it the number of commitment keys, is determined by `n`. The label
+`"IssuerProof"` separates this transcript from the issuance transcript of
+{{challenge}}, which is hashed with the same function.
 
-Unlike `ComputeChallenge`, this function has no nonzero requirement: a challenge
-of zero yields a proof that verifies, and no branch is privileged by it.
+Callers invoke `ComputeProofChallenge` only after validating the Anchor Set,
+the context bounds, the 32-byte `challenge_digest`, the `Nn`-byte nullifier,
+and the exact commitment-key count. These checks ensure that every count and
+length represented in two bytes is in range before the transcript is built.
+
+Unlike the issuance challenge, the issuer-proof challenge is allowed to be
+zero. A zero challenge yields a proof that verifies, and no branch is privileged
+by it.
 
 ### Proving {#prove-issuer}
 
@@ -1464,7 +1544,7 @@ Input:
   Endorsement endorsement
   PublicInput ctx_iss
   PublicInput ctx_red
-  PublicInput challenge_digest
+  opaque challenge_digest[32]
   opaque rand[(3 * q + 1) * Nseed]
 ~~~
 
@@ -1485,13 +1565,21 @@ Parameters:
   Nseed
 ~~~
 
-Errors: `DeriveError`
+Errors: `VerifyError`, `DeriveError`
 
 ~~~
 def ProveIssuer(anchor_set, index, delta, X_hat, endorsement, ctx_iss,
-                ctx_red, challenge_digest, rand):
+                 ctx_red, challenge_digest, rand):
+  n = len(anchor_set)
+  if (not ValidAnchorSet(anchor_set) or index < 0 or index >= n or
+      len(ctx_iss) > 2^16 - 1 or len(ctx_red) > 2^16 - 1 or
+      len(challenge_digest) != 32):
+    raise VerifyError
+
   (Y, q) = Statements(anchor_set, X_hat)
   N = 2^q
+  if len(rand) != (3 * q + 1) * Nseed:
+    raise VerifyError
 
   r = DeriveScalar(Seed(rand, 0), "r")
   trapdoor = []
@@ -1594,7 +1682,7 @@ Input:
   Endorsement endorsement
   PublicInput ctx_iss
   PublicInput ctx_red
-  PublicInput challenge_digest
+  opaque challenge_digest[32]
   Scalar proof_challenge
   Scalar response
   Element commitment_keys[q]
@@ -1619,7 +1707,9 @@ def VerifyIssuer(anchor_set, X_hat, endorsement, ctx_iss, ctx_red,
                  challenge_digest, proof_challenge, response,
                  commitment_keys, openings):
   n = len(anchor_set)
-  if n < 2:
+  if (not ValidAnchorSet(anchor_set) or
+      len(ctx_iss) > 2^16 - 1 or len(ctx_red) > 2^16 - 1 or
+      len(challenge_digest) != 32):
     return false
 
   (Y, q) = Statements(anchor_set, X_hat)
@@ -1658,15 +1748,13 @@ and checks that the root it arrives at is the one the challenge was computed
 over. Neither the branch commitments nor the interior nodes are transmitted.
 
 `VerifyIssuer` returns `false` rather than raising an error, so that it is a
-total predicate on its inputs, as `Verify` ({{verify}}) is. Two of its three
-rejections are defensive restatements of its input types: the lengths of
-`commitment_keys` and `openings` are fixed by the Anchor Set, and a redemption
-whose vectors have any other length is rejected before this algorithm is
-reached, when it is deserialized ({{redemption-wire}}). The third, `n < 2`, is
-not a property of the redemption at all but of the Moderator's own Anchor Set;
-reaching it means the Moderator is misconfigured ({{verify-redemption}}).
+total predicate on its inputs, as `Verify` ({{verify}}) is. Its vector-length
+checks are defensive restatements of its input types: a redemption whose vectors
+have any other length is rejected when it is deserialized
+({{redemption-wire}}). The remaining checks validate the Moderator's own inputs,
+including the Anchor Set ({{finalize-redeem}}).
 
-An honest proof verifies. On branch `index`,
+A proof produced by `ProveIssuer` passes `VerifyIssuer`. For branch `index`,
 
 ~~~
   proof_challenge * Y[index] + response * B
@@ -1686,7 +1774,7 @@ for two different challenges would yield `delta` for that leaf's statement. The
 soundness of the proof rests on that, and on nothing about the other branches;
 see {{security-considerations}}.
 
-## Redemption {#redeem}
+## Redemption Request {#redeem-request}
 
 The Client produces a redemption from an Endorsement it holds.
 
@@ -1698,7 +1786,7 @@ Input:
   Endorsement endorsement
   PublicInput ctx_iss
   PublicInput ctx_red
-  PublicInput challenge_digest
+  opaque challenge_digest[32]
 ~~~
 
 Output:
@@ -1712,21 +1800,25 @@ Parameters:
 ~~~
   Group G
   PublicInput ctx_proto
+  Nn
   Nseed
 ~~~
 
 Errors: `VerifyError`, `DeriveError`
 
 ~~~
-def Redeem(anchor_set, index, endorsement, ctx_iss, ctx_red,
-           challenge_digest):
+def RedeemRequest(anchor_set, index, endorsement, ctx_iss, ctx_red,
+                  challenge_digest):
   (c, s, y, t, nf) = endorsement
   n = len(anchor_set)
 
-  if n < 2:
+  if (not ValidAnchorSet(anchor_set) or index < 0 or index >= n or
+      len(ctx_iss) > 2^16 - 1 or len(ctx_red) > 2^16 - 1 or
+      len(challenge_digest) != 32 or len(nf) != Nn or
+      len(Message(nf, ctx_red)) > 2^16 - 1):
     raise VerifyError
 
-  (Y, q) = Statements(anchor_set, Identity())
+  (Y, q) = Statements(anchor_set, G.Identity())
   nrand = (3 * q + 2) * Nseed
 
   rand = random(nrand)
@@ -1744,14 +1836,14 @@ def Redeem(anchor_set, index, endorsement, ctx_iss, ctx_red,
                     commitment_keys, openings)
 ~~~
 
-A Client MUST NOT redeem against an Anchor Set of fewer than two keys, and
-`Redeem` raises a `VerifyError` rather than producing a redemption. This is the
-Client's own protection, and it is not redundant with the requirement on the
-Moderator not to offer such a set ({{verify-redemption}}): that requirement is
-of no help against a Moderator that offers a single key precisely in order to
-learn which Anchor endorsed this Client. Refusing also keeps the depth `q` of
-the tree at least one, so a redemption always carries at least one commitment
-key.
+A Client MUST NOT redeem against an invalid Anchor Set, and `RedeemRequest`
+raises a `VerifyError` rather than producing a redemption. It checks `index`
+before evaluating `anchor_set[index]`. Singleton rejection is the Client's own
+protection, and is not redundant with the requirement on the Moderator not to
+offer such a set ({{finalize-redeem}}): that requirement is of no help against a
+Moderator that offers a single key precisely to learn which Anchor endorsed the
+Client. Refusing also keeps the depth `q` of the tree at least one, so a
+redemption always carries at least one commitment key.
 
 The amount of randomness a redemption consumes depends on the size of the Anchor
 Set, through the depth `q` of the tree ({{pbvc}}), and on nothing else; in
@@ -1763,7 +1855,7 @@ from the Endorsement or from any other value a Client reuses. It is what makes
 the redemption unlinkable to the Anchor, and reusing it across two redemptions
 would link them to each other.
 
-## Redemption Verification {#verify-redemption}
+## Finalizing Redemption {#finalize-redeem}
 
 The Moderator checks the signature under the rerandomized key and the proof
 against its Anchor Set.
@@ -1775,13 +1867,13 @@ Input:
   Redemption redemption
   PublicInput ctx_iss
   PublicInput ctx_red
-  PublicInput challenge_digest
+  opaque challenge_digest[32]
 ~~~
 
 Output:
 
 ~~~
-  boolean verified
+  opaque nf[Nn] or INVALID
 ~~~
 
 Parameters:
@@ -1789,48 +1881,63 @@ Parameters:
 ~~~
   Group G
   PublicInput ctx_proto
+  Nn
 ~~~
 
 ~~~
-def VerifyRedemption(anchor_set, redemption, ctx_iss, ctx_red,
-                     challenge_digest):
+def FinalizeRedeem(anchor_set, redemption, ctx_iss, ctx_red,
+                   challenge_digest):
+  if redemption is malformed:
+    return INVALID
+
   (X_hat, shown, proof_challenge, response,
    commitment_keys, openings) = redemption
 
+  if (not ValidAnchorSet(anchor_set) or
+      len(ctx_iss) > 2^16 - 1 or len(ctx_red) > 2^16 - 1 or
+      len(challenge_digest) != 32):
+    return INVALID
   if not Verify(X_hat, shown, ctx_iss, ctx_red):
-    return false
-
-  return VerifyIssuer(anchor_set, X_hat, shown, ctx_iss, ctx_red,
+    return INVALID
+  if not VerifyIssuer(anchor_set, X_hat, shown, ctx_iss, ctx_red,
                       challenge_digest, proof_challenge, response,
-                      commitment_keys, openings)
+                      commitment_keys, openings):
+    return INVALID
+
+  (c, s_hat, y, t, nf) = shown
+  return nf
 ~~~
 
 The first check is the endorsement verification of {{verify}}, run against the
 rerandomized key. Together the two checks establish that the Client holds an
 Endorsement issued under `ctx_iss` and `ctx_red` by one of the Anchors in
-`anchor_set`, and reveal nothing further about which one.
+`anchor_set`, and reveal nothing further about which one. `FinalizeRedeem`
+returns `INVALID` for every failure, including malformed encodings, malformed
+vector lengths, invalid Anchor Sets, wrong context or digest lengths, and failed
+cryptographic checks. On success it returns the nullifier `nf`.
 
-`VerifyRedemption` does not enforce single use. The nullifier `nf` is in the
-clear in the redemption, and a Moderator that accepts a redemption MUST reject
-it if it has already recorded that `nf`, and MUST record `nf` before granting
-anything on the strength of it. A Moderator SHOULD scope its nullifier store to
-the issuance context, since an Endorsement issued under a different `ctx_iss`
-does not verify anyway. {{PROTOCOLS}} places these checks, and the check that
+`FinalizeRedeem` performs only cryptographic validation; it does not enforce
+single use. After it returns `nf`, the Moderator MUST perform an atomic
+check-and-record operation: reject if `nf` is already recorded; otherwise
+record it as spent before granting anything on the strength of the redemption.
+This replay check and state transition are a Moderator responsibility outside
+the cryptographic API. A Moderator SHOULD scope its nullifier store to the
+issuance context, since an Endorsement issued under a different `ctx_iss` does
+not verify anyway. {{PROTOCOLS}} places these checks, and the check that
 `ctx_iss` is current, at the Moderator.
 
 A Moderator MUST NOT offer an Anchor Set of one key: with `n = 1` the tree has
 depth zero, the proof carries no commitment key, and what remains is a plain
 proof of knowledge of `delta` for the single key, which identifies the Anchor.
-`VerifyIssuer` rejects that case, but that rejection is a guard on the
+`FinalizeRedeem` rejects that case, but that rejection is a guard on the
 Moderator's own configuration rather than a verdict on the redemption: a
 Moderator that configures it has already lost the property before any proof is
 checked. See {{security-considerations}}.
 
 ## Encodings {#redemption-wire}
 
-A redemption is carried in the `bytes` field of the `Presentation` structure of
-{{PROTOCOLS}}, which a Client sends in the `endorsement_presentation` field of a
-`CredentialRequest`.
+A redemption is carried directly in the `endorsement_presentation` field of a
+`CredentialRequest` defined by {{PROTOCOLS}}.
 
 ~~~ tls-presentation
 struct {
@@ -1852,8 +1959,9 @@ the Endorsement the Client stored, and the Client MUST NOT send that one.
 `2 * q` scalars, where `q` is the depth of the tree determined by the Anchor Set
 the Moderator offered ({{pbvc}}). The two openings of level `j` are at positions
 `2 * (j - 1)` and `2 * (j - 1) + 1`, in that order. A Moderator MUST reject any
-other length with a `DeserializeError` rather than truncating or padding, and
-MUST NOT infer the size of its own Anchor Set from the redemption.
+other length as malformed rather than truncating or padding, and MUST NOT infer
+the size of its own Anchor Set from the redemption. `FinalizeRedeem` reports
+such malformed input as `INVALID`.
 
 A redemption is therefore `Ne + 4 * Ns + Nn + 2 * Ns + q * Ne + 2 * q * Ns`
 bytes plus the two vector length prefixes, which are two bytes each at the
@@ -1874,11 +1982,10 @@ and domain separation tags. Both parties are assumed to agree on the
 ciphersuite in use ({{config}}).
 
 For each ciphersuite, `ctx_proto` is as computed in {{config}}. The nullifier
-length is `Nn = 32` bytes and the seed length is `Nseed = Ns + 16` bytes, that
-is 48 bytes, for both ciphersuites below. The 16 bytes in excess of `Ns` are
-what makes a derived scalar statistically close to uniform ({{derive-scalar}}),
-on the same grounds that {{HASH2CURVE}} oversamples by 128 bits when it maps a
-byte string to a field element.
+length is `Nn = 32` bytes and the seed length is `Nseed = Ns + 32` bytes, that
+is 64 bytes, for both ciphersuites below. In the random-oracle model, the 256
+bits in excess of `Ns` make the distribution induced by a fixed public hash
+about `2^-128` from uniform ({{derive-scalar}}).
 
 ## IHAT(P-256, SHA-256)
 
@@ -2008,22 +2115,21 @@ mROS problem, which admits sub-exponential attacks.
 Blindness:
 : The Anchor's view of a session is the blinded challenge `c` alone. Because
   `gamma2` is uniform and nonzero, `c` is uniformly distributed and independent
-  of the message and of the resulting signature. The scheme is perfectly blind
-  {{TESSZHU}}, so an Anchor cannot link an Endorsement to the session that
-  produced it, even with unbounded computation. This is what makes endorsement
-  grants and redemptions unlinkable as required by {{ARCH}}, including against
-  an attacker with a quantum computer that records transcripts today.
+  of the message and of the resulting signature in the ideal scheme, which is
+  perfectly blind {{TESSZHU}}. The concrete seed-derived instantiation below is
+  statistically blind rather than perfect.
 
 Derived blinding factors:
 : Blindness is unconditional only if the blinding factors are. `Challenge`
-  derives them from seeds rather than sampling them, and `Redeem` derives
+  derives them from seeds rather than sampling them, and `RedeemRequest` derives
   `delta` and the proof's nonces the same way, so the guarantee is
   statistical rather than perfect: an Endorsement and a session are linkable
   by an adversary that can find a seed consistent with both. Two properties of
   {{derive-scalar}} keep the loss negligible. Each scalar gets its own seed, so
   a seed consistent with any given value exists with overwhelming probability
-  and finding one therefore separates nothing; and each seed is `Ns + 16` bytes,
-  so each derived scalar is within about `2^-128` of uniform. Deriving several
+  and finding one therefore separates nothing; and each seed is `Ns + 32` bytes,
+  so each derived scalar is within about `2^-128` of uniform in the random-oracle
+  model. Deriving several
   scalars from one seed, or from a seed of `Ns` bytes, would break this: the
   blinding factors of a session would then be jointly determined by fewer bits
   than they contain, an exhaustive search over seeds would identify the one
@@ -2034,8 +2140,8 @@ One-more unforgeability:
 : A Client that completes `k` issuance sessions under a given issuance context
   cannot produce `k+1` distinct valid Endorsements under that context,
   regardless of how many sessions it has completed under *other* issuance
-  contexts {{TESSZHU}}. This is what allows a Moderator to conclude that an
-  accepted Endorsement corresponds to exactly one grant by a trusted Anchor.
+  contexts {{TESSZHU}}. Thus, `k` completed grants yield at most `k` distinct
+  valid Endorsements; this does not identify a corresponding issuance session.
 
 Unforgeability under rerandomization:
 : Rerandomization is additive and applies only after issuance, so issuance is
@@ -2047,16 +2153,18 @@ Unforgeability under rerandomization:
   (Section 7 of {{STACKSIG}}): two accepting proofs that share a first move but
   answer different challenges agree on the branch commitment at the binding
   position, and the branch proof of {{branch}} then yields `delta` for that
-  branch's statement. Nothing in `Redeem` gives a Client a signature it did not
-  already hold: `X_hat` and `s_hat` are computed from values it has, and a
-  Client that could produce an accepted redemption without an Endorsement from
-  some Anchor in `anchor_set` would yield a forgery. **TODO:** this reduction is
-  stated, not written out.
+  branch's statement. Nothing in `RedeemRequest` gives a Client a signature it
+  did not already hold: `X_hat` and `s_hat` are computed from values it has, and
+  a Client that could produce an accepted redemption without an Endorsement
+  from some Anchor in `anchor_set` would yield a forgery. **TODO:** this
+  reduction is stated, not written out.
 
 Issuer hiding:
-: A redemption is distributed identically no matter which Anchor in `anchor_set`
-  issued the Endorsement, so a Moderator, an Anchor, and the two colluding
-  learn only that some key in `anchor_set` was used. Three facts combine.
+: Redemption distributions are statistically indistinguishable no matter which
+  Anchor in `anchor_set` issued the Endorsement, up to the loss quantified
+  below. A Moderator, an Anchor, and the two colluding therefore learn only that
+  some key in `anchor_set` was used from the cryptographic transcript. Three
+  facts establish this property.
   `X_hat` is uniform over the choice of `delta`. The `response` of the single
   branch proof carries no dependence on the statement it was computed for
   ({{branch}}). And the commitment scheme of {{pbvc}} hides which position it
@@ -2105,8 +2213,8 @@ Partially binding commitments:
 Anchor Set size:
 : Issuer hiding hides the Anchor *within the Anchor Set*, so the set is the
   anonymity set, and a redemption against a single-key set would name the
-  Anchor outright ({{verify-redemption}}); a Client MUST refuse such a set
-  rather than rely on the Moderator to avoid offering one ({{redeem}}).
+  Anchor outright ({{finalize-redeem}}); a Client MUST refuse such a set
+  rather than rely on the Moderator to avoid offering one ({{redeem-request}}).
   Padding the set to a power of two ({{pbvc}}) does not enlarge it: a padded
   leaf repeats a statement rather than adding an Anchor, and the anonymity set
   is `n`, never `N`. More generally a Moderator that offers different Anchor
@@ -2136,10 +2244,10 @@ Constant-time proving:
   distinguished by timing, memory access patterns, or the amount of randomness
   consumed. The specification is written so that the last of these is not a
   signal: the randomness a redemption consumes is a function of `q` alone
-  ({{redeem}}). The first move commits along the path only, and the third move
-  visits every node of the tree; an implementation that instead recomputes the
-  path lazily, or that branches on the value of `right` in a way an adversary can
-  observe, reintroduces the signal.
+  ({{redeem-request}}). The first move commits along the path only, and the third
+  move visits every node of the tree; an implementation that instead recomputes
+  the path lazily, or that branches on the value of `right` in a way an
+  adversary can observe, reintroduces the signal.
 
 Single-use sessions:
 : **Implementations MUST ensure that the session state produced by `Commit` is
@@ -2149,9 +2257,10 @@ Single-use sessions:
   `y` revealed in both, anyone recovers the signing key as
   `skA = (s1 - s2) * ScalarInverse((c1 - c2) * y)`. The requirement extends to
   process restarts, to replicas sharing a signing key, and to any retry or
-  replay of a `ChallengeMessage`: an Anchor MUST treat a session as closed the
-  moment it emits a response, and MUST answer a repeated `session_id` with a
-  `SessionError` rather than recomputing. Anchors are stateful for this reason,
+  replay of a `ChallengeMessage`: an Anchor MUST atomically claim and close a
+  session before reading its state or computing a response, and MUST answer a
+  repeated `session_id` with a `SessionError` rather than recomputing. Anchors
+  are stateful for this reason,
   and this state cannot be made stateless by sealing it into a cookie handed to
   the Client: sealing preserves the secrecy of `(a, y, t)` but not their
   single use, and single use is the property that matters here.
@@ -2160,14 +2269,11 @@ Challenge binding:
 : `challenge_digest` enters the proof transcript ({{proof-challenge}}), so a
   proof produced for one challenge does not verify under any other. Whether that
   amounts to replay protection depends on the challenge being fresh, which this
-  document does not control: {{PROTOCOLS}} fixes what the Moderator's challenge
-  contains, and a challenge that carries only the Moderator's configuration
-  takes the same value for every Client and every session. Under such a
-  challenge, `challenge_digest` binds a proof to the Moderator rather than to a
-  session, and it is the nullifier check of {{verify-redemption}} that prevents
-  a redemption from being replayed. A deployment that wants challenge binding to
-  carry session freshness needs the challenge to include a value that varies per
-  session. It binds the proof, not the signature: the
+  document does not control. {{PROTOCOLS}} and its transport profile define the
+  challenge and its freshness. Irrespective of freshness, the Moderator's atomic
+  nullifier check after {{finalize-redeem}} prevents an accepted redemption from
+  being replayed in that store's scope. Challenge binding applies to the proof,
+  not the signature: the
   signature is the same bytes whatever challenge is answered, which is why the
   nullifier check and not challenge binding is what makes an Endorsement
   single-use.
@@ -2236,12 +2342,13 @@ specified here is registered by {{PROTOCOLS}}.
 > **TODO.** Test vectors for `DeriveKeyPair`, `DeriveScalar`,
 > `CreateContextBase`, `Message`, `ComputeChallenge`, the four issuance
 > algorithms, `Verify`, `G0`, `CommitNode`, `CompressValue`,
-> `ComputeProofChallenge`, `Redeem`, and `VerifyRedemption`, for each ciphersuite
-> in {{ciphersuites}}. Issuance and redemption are randomized, but every
-> algorithm is a deterministic function of the bytes it draws from `random`, so a
-> vector fixes one value per algorithm: the key seed, the `rand` of `Commit`, the
-> `rand` of `Challenge`, and the `rand` of `Redeem`. A redemption vector also has
-> to fix the Anchor Set, its order, the Client's `index` in it, and a
+> `ComputeProofChallenge`, `RedeemRequest`, and `FinalizeRedeem`, for each
+> ciphersuite in {{ciphersuites}}. Issuance and redemption are randomized, but
+> every algorithm is a deterministic function of the bytes it draws from
+> `random`, so a vector fixes one value per algorithm: the key seed, the `rand`
+> of `Commit`, the `rand` of `Challenge`, and the `rand` of `RedeemRequest`. A
+> redemption vector also has to fix the Anchor Set, its order, the Client's
+> `index` in it, and a
 > `challenge_digest`, and SHOULD include one Anchor Set whose size is not a power
 > of two, so that the padding of {{pbvc}} is covered.
 
