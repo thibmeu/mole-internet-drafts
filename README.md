@@ -8,6 +8,7 @@ This is the working area for MoLE IETF drafts. The current items are as follow
 2. [HTTP Transport](https://moderation-of-unlinkable-endorsements.github.io/internet-drafts/draft-jms-mole-http-transport.html) ([Datatracker](https://datatracker.ietf.org/doc/draft-jms-mole-http-transport/))
 3. [Protocols](https://moderation-of-unlinkable-endorsements.github.io/internet-drafts/draft-jms-mole-protocols.html) ([Datatracker](https://datatracker.ietf.org/doc/draft-jms-mole-protocols/))
 4. [Cryptography definitions](https://moderation-of-unlinkable-endorsements.github.io/internet-drafts/draft-authors-mole-crypto.html) (Datatracker - not published yet)
+5. [Privacy Pass issuer hiding](https://moderation-of-unlinkable-endorsements.github.io/internet-drafts/draft-meunier-privacypass-issuer-hiding.html) (Datatracker - not published yet)
 
 You can find all drafts and diff on [GitHub Pages](https://moderation-of-unlinkable-endorsements.github.io/internet-drafts/).
 
