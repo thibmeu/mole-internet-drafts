@@ -3,10 +3,9 @@
 
 
 Network Working Group                                     S. Schlesinger
-Internet-Draft                                                   J. Katz
-Intended status: Informational                                Google LLC
-Expires: 10 April 2027                                  A. Faz-Hernandez
-                                                        Cloudflare, Inc.
+Internet-Draft                                                Google LLC
+Intended status: Informational                                   W. Ladd
+Expires: 10 April 2027                               Akamai Technologies
                                                              D. I. Mohan
                                          Georgia Institute of Technology
                                                           7 October 2026
@@ -2544,14 +2543,9 @@ Authors' Addresses
    Email: sgschlesinger@gmail.com
 
 
-   Jonathan Katz
-   Google LLC
-   Email: jkcrypto@google.com
-
-
-   Armando Faz-Hernandez
-   Cloudflare, Inc.
-   Email: armfazh@cloudflare.com
+   Watson Ladd
+   Akamai Technologies
+   Email: watsonbladd@gmail.com
 
 
    Deep Inder Mohan

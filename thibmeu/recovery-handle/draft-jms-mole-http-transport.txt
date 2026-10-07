@@ -390,6 +390,11 @@ Table of Contents
 
    Authorization: Mole recovery="<credential-recovery>"
 
+   The Moderator MUST retain the RefundMessage octets with each
+   Refund(t) result for the full result retention interval
+   ([PROTOCOLS]).  The handle does not contain the spend data needed to
+   regenerate a refund.
+
    The Moderator MUST NOT perform a protected operation for a recovery
    request, and MUST locate the recorded result using only
    recovery_handle, without a cookie or other Client identifier.  For

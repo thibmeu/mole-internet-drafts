@@ -1690,7 +1690,10 @@ under (<a href="#configuration" class="auto internal xref">Section 5</a>):<a hre
 Authorization: Mole recovery="&lt;credential-recovery&gt;"
 </pre><a href="#section-6.3.4-4" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3.4-5">The Moderator <span class="bcp14">MUST NOT</span> perform a protected operation for a recovery
+<p id="section-6.3.4-5">The Moderator <span class="bcp14">MUST</span> retain the <code>RefundMessage</code> octets with each <code>Refund(t)</code>
+result for the full result retention interval (<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>). The handle
+does not contain the spend data needed to regenerate a refund.<a href="#section-6.3.4-5" class="pilcrow">¶</a></p>
+<p id="section-6.3.4-6">The Moderator <span class="bcp14">MUST NOT</span> perform a protected operation for a recovery
 request, and <span class="bcp14">MUST</span> locate the recorded result using only <code>recovery_handle</code>,
 without a cookie or other Client identifier. For step 1 of the ACT
 Spending and Refunds procedure (<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>), a recovery request is a
@@ -1703,7 +1706,7 @@ length is malformed. The Moderator answers with the recovery row of
 <a href="#act-responses" class="auto internal xref">Section 6.3.5</a>, the same <code>409</code> as for a resent presentation, while the
 result is retained, and with the same <code>401</code> otherwise, whether or not the
 nullifier is recorded. After a <code>401</code>, a Client that still holds the
-presentation <span class="bcp14">MAY</span> resend it.<a href="#section-6.3.4-5" class="pilcrow">¶</a></p>
+presentation <span class="bcp14">MAY</span> resend it.<a href="#section-6.3.4-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="act-responses">
