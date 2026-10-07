@@ -373,43 +373,25 @@ Table of Contents
 
 6.3.4.  Client -> Moderator - Recovery
 
-   A Client that lacks the response to an ACT presentation (credential
-   type 0x0001) can ask for the recorded update with a handle instead of
-   resending the presentation.  Other credential types have no handle.
+   A Client missing the response to a presentation MAY send a handle
+   instead of resending it.
 
    struct {
      uint16 credential_type;
      opaque recovery_handle<V>;
    } CredentialRecovery;
 
-   For ACT, recovery_handle is key_id || SerializeScalar(spend.k) ||
-   SHA-256(PresentationAndUpdate), from the presentation the Client sent
-   ([PROTOCOLS]).  The Client sends it in a POST request with empty
-   content to the Redeem & Issue endpoint of the configuration the
-   Credential was issued under (Section 5):
+   The handle is defined by the credential type ([PROTOCOLS]).  It is
+   sent in a POST request with empty content to the Redeem & Issue
+   endpoint (Section 5):
 
    Authorization: Mole recovery="<credential-recovery>"
 
-   The Moderator MUST retain the RefundMessage octets with each
-   Refund(t) result for the full result retention interval
-   ([PROTOCOLS]).  The handle does not contain the spend data needed to
-   regenerate a refund.
-
-   The Moderator MUST NOT perform a protected operation for a recovery
-   request, and MUST locate the recorded result using only
-   recovery_handle, without a cookie or other Client identifier.  For
-   step 1 of the ACT Spending and Refunds procedure ([PROTOCOLS]), a
-   recovery request is a resent byte-identical presentation: key_id and
-   spend.k select the record, and the handle's digest stands for the
-   digest of the received PresentationAndUpdate octets.  Recovery
-   succeeds under the conditions that procedure and its Lost Refunds
-   rules set for a resent presentation.  The Moderator never verifies a
-   proof for a recovery request.  A handle of the wrong length is
-   malformed.  The Moderator answers with the recovery row of
-   Section 6.3.5, the same 409 as for a resent presentation, while the
-   result is retained, and with the same 401 otherwise, whether or not
-   the nullifier is recorded.  After a 401, a Client that still holds
-   the presentation MAY resend it.
+   The Moderator treats it as a byte-identical resend of the
+   presentation, using no other Client identifier.  It MUST NOT perform
+   the protected operation or verify a proof.  It answers 409 with the
+   recorded update while the result is retained, and 401 otherwise,
+   whether or not a record exists.
 
 6.3.5.  ACT Responses
 

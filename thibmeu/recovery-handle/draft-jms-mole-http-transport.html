@@ -1669,9 +1669,8 @@ Credentials, or state that Credentials of that type are not cacheable.<a href="#
           <h4 id="name-client-moderator-recovery">
 <a href="#section-6.3.4" class="section-number selfRef">6.3.4. </a><a href="#name-client-moderator-recovery" class="section-name selfRef">Client -&gt; Moderator - Recovery</a>
           </h4>
-<p id="section-6.3.4-1">A Client that lacks the response to an ACT presentation (credential type
-<code>0x0001</code>) can ask for the recorded update with a handle instead of
-resending the presentation. Other credential types have no handle.<a href="#section-6.3.4-1" class="pilcrow">¶</a></p>
+<p id="section-6.3.4-1">A Client missing the response to a presentation <span class="bcp14">MAY</span> send a handle instead of
+resending it.<a href="#section-6.3.4-1" class="pilcrow">¶</a></p>
 <div class="lang-tls-presentation sourcecode" id="section-6.3.4-2">
 <pre>
 struct {
@@ -1680,33 +1679,18 @@ struct {
 } CredentialRecovery;
 </pre><a href="#section-6.3.4-2" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3.4-3">For ACT, <code>recovery_handle</code> is
-<code>key_id || SerializeScalar(spend.k) || SHA-256(PresentationAndUpdate)</code>,
-from the presentation the Client sent (<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>). The Client sends it in a <code>POST</code> request with empty content to
-the Redeem &amp; Issue endpoint of the configuration the Credential was issued
-under (<a href="#configuration" class="auto internal xref">Section 5</a>):<a href="#section-6.3.4-3" class="pilcrow">¶</a></p>
+<p id="section-6.3.4-3">The handle is defined by the credential type (<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>). It is sent in a
+<code>POST</code> request with empty content to the Redeem &amp; Issue endpoint
+(<a href="#configuration" class="auto internal xref">Section 5</a>):<a href="#section-6.3.4-3" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-6.3.4-4">
 <pre>
 Authorization: Mole recovery="&lt;credential-recovery&gt;"
 </pre><a href="#section-6.3.4-4" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3.4-5">The Moderator <span class="bcp14">MUST</span> retain the <code>RefundMessage</code> octets with each <code>Refund(t)</code>
-result for the full result retention interval (<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>). The handle
-does not contain the spend data needed to regenerate a refund.<a href="#section-6.3.4-5" class="pilcrow">¶</a></p>
-<p id="section-6.3.4-6">The Moderator <span class="bcp14">MUST NOT</span> perform a protected operation for a recovery
-request, and <span class="bcp14">MUST</span> locate the recorded result using only <code>recovery_handle</code>,
-without a cookie or other Client identifier. For step 1 of the ACT
-Spending and Refunds procedure (<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>), a recovery request is a
-resent byte-identical presentation: <code>key_id</code> and <code>spend.k</code> select the
-record, and the handle's digest stands for the digest of the received
-<code>PresentationAndUpdate</code> octets. Recovery succeeds under the conditions that
-procedure and its Lost Refunds rules set for a resent presentation. The
-Moderator never verifies a proof for a recovery request. A handle of the wrong
-length is malformed. The Moderator answers with the recovery row of
-<a href="#act-responses" class="auto internal xref">Section 6.3.5</a>, the same <code>409</code> as for a resent presentation, while the
-result is retained, and with the same <code>401</code> otherwise, whether or not the
-nullifier is recorded. After a <code>401</code>, a Client that still holds the
-presentation <span class="bcp14">MAY</span> resend it.<a href="#section-6.3.4-6" class="pilcrow">¶</a></p>
+<p id="section-6.3.4-5">The Moderator treats it as a byte-identical resend of the presentation,
+using no other Client identifier. It <span class="bcp14">MUST NOT</span> perform the protected operation
+or verify a proof. It answers <code>409</code> with the recorded update while the result
+is retained, and <code>401</code> otherwise, whether or not a record exists.<a href="#section-6.3.4-5" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="act-responses">

@@ -2480,8 +2480,8 @@ under its policy
 whether to refund and, if so, the return amount <code>t</code>, runs
 <code>IssueRefund(skM, ctx_cred, spend, t)</code> if it refunds, and inserts a record
 for <code>(key_id, spend.k)</code>. The record holds the <em>result</em>: the digest of the
-presentation octets, <code>ctx_cred</code>, and the decision, either <code>Refund(t)</code>,
-optionally with the octets of the <code>RefundMessage</code>, or <code>NoUpdate</code>. The
+presentation octets, <code>ctx_cred</code>, and the decision, either <code>Refund(t)</code>
+with the octets of the <code>RefundMessage</code>, or <code>NoUpdate</code>. The
 insertion <span class="bcp14">MUST</span> fail if the record exists by then, so of two racing
 presentations at most one commits. If any step fails, the transaction is
 rolled back and no refund is returned.<a href="#section-5.2.3.2-6.3.1" class="pilcrow">¶</a></p>
@@ -2621,22 +2621,21 @@ acceptance of its key and credential context before returning a result.
 Recovery remains available after the presentation's challenge expires:<a href="#section-5.2.5-2" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-5.2.5-3.1">
-              <p id="section-5.2.5-3.1.1">For a recorded <code>Refund(t)</code>, the Moderator returns the refund it stored, or
-runs <code>IssueRefund(skM, ctx_cred, spend, t)</code> again with the recorded
-<code>ctx_cred</code> and <code>t</code>. Re-running <code>IssueRefund</code> is harmless, since every
-refund of one spend shares the nullifier <code>kstar</code> (<span>[<a href="#ACT" class="cite xref">ACT</a>]</span>).<a href="#section-5.2.5-3.1.1" class="pilcrow">¶</a></p>
+              <p id="section-5.2.5-3.1.1">For a recorded <code>Refund(t)</code>, the Moderator returns the refund it stored.<a href="#section-5.2.5-3.1.1" class="pilcrow">¶</a></p>
 </li>
             <li class="normal" id="section-5.2.5-3.2">
               <p id="section-5.2.5-3.2.1">For a recorded <code>NoUpdate</code>, the Moderator returns an absent update.<a href="#section-5.2.5-3.2.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
-<p id="section-5.2.5-4">The Moderator <span class="bcp14">MUST NOT</span> authorize another operation for a recorded nullifier,
+<p id="section-5.2.5-4">The recovery handle (<span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span>) is
+<code>key_id || SerializeScalar(spend.k) || SHA-256(PresentationAndUpdate)</code>.<a href="#section-5.2.5-4" class="pilcrow">¶</a></p>
+<p id="section-5.2.5-5">The Moderator <span class="bcp14">MUST NOT</span> authorize another operation for a recorded nullifier,
 and <span class="bcp14">MUST NOT</span> change a recorded decision. It returns the recovered result
-with HTTP status <code>409</code> as specified in <span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span>.<a href="#section-5.2.5-4" class="pilcrow">¶</a></p>
-<p id="section-5.2.5-5">Once recovery ends, a retry is rejected, and the Client <span class="bcp14">MUST</span> discard the
+with HTTP status <code>409</code> as specified in <span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span>.<a href="#section-5.2.5-5" class="pilcrow">¶</a></p>
+<p id="section-5.2.5-6">Once recovery ends, a retry is rejected, and the Client <span class="bcp14">MUST</span> discard the
 spend state. To continue, it runs Redeem &amp; Issue. The Moderator <span class="bcp14">MUST</span> retain
 the nullifier after deleting its result for as long as the key and
-credential context are accepted (<a href="#key-rotation" class="auto internal xref">Section 6</a>).<a href="#section-5.2.5-5" class="pilcrow">¶</a></p>
+credential context are accepted (<a href="#key-rotation" class="auto internal xref">Section 6</a>).<a href="#section-5.2.5-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="act-limitations">
@@ -2746,6 +2745,8 @@ including the same <code>Update</code> or the same absence of an update. It <spa
 replay after that record expires and <span class="bcp14">MUST NOT</span> issue a second Credential. The
 Client <span class="bcp14">MUST NOT</span> combine the same presented Credential with a different update
 request. These requirements are the retry semantics of <span>[<a href="#REVERSE-FLOW" class="cite xref">REVERSE-FLOW</a>]</span>.<a href="#section-5.3.3-1" class="pilcrow">¶</a></p>
+<p id="section-5.3.3-2">The recovery handle (<span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span>) is
+<code>token.token_key_id || token.nonce || SHA-256(PresentationAndUpdate)</code>.<a href="#section-5.3.3-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="limitations">
