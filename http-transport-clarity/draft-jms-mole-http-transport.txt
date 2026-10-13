@@ -130,7 +130,7 @@ Table of Contents
        |<-------------- Mole-Credential: update= --+
        |                                           |
 
-   A challenge carries exactly one of these parameters:
+   Each Mole challenge carries exactly one of these payload parameters:
 
       +===========+===========+====================================+
       | Parameter | Sent by   | Value                              |
@@ -149,7 +149,8 @@ Table of Contents
    offering a choice sends several Mole challenges.  The Client picks
    one it supports and MUST ignore challenges of unknown type.
 
-   An Authorization header carries exactly one of these parameters:
+   A Mole credential in Authorization carries exactly one of these
+   payload parameters:
 
          +====================+==================================+
          | Parameter          | Value                            |
@@ -164,11 +165,16 @@ Table of Contents
                      Table 2: Authorization parameters
 
    Parameters follow the auth-param syntax of Section 11.2 of [HTTP]; a
-   value may be a token or a quoted-string.  A recipient ignores unknown
-   parameters.  It MUST reject as malformed a header with a repeated
-   parameter, none or more than one of the parameters above, a value
-   that is not canonical unpadded base64url, or a decoded value that
-   does not parse as the named structure.
+   value may be a token or a quoted-string.  One WWW-Authenticate field
+   can carry several challenges (Section 11.6.1 of [HTTP]), and the
+   rules below apply to each Mole challenge or credential separately.  A
+   recipient ignores unknown parameters, including realm.  It MUST
+   reject as malformed a challenge or credential with a repeated
+   parameter, or with none or more than one of the payload parameters
+   above.  It MUST reject a payload value that is not canonical unpadded
+   base64url, or whose decoded value does not parse as the named
+   structure.  A Client ignores a malformed challenge and can use
+   another one.
 
 4.  The Mole-Credential Field
 
@@ -186,8 +192,9 @@ Table of Contents
                    Table 3: Mole-Credential parameters
 
    An absent CredentialUpdate means the Moderator consumed the
-   Credential without replacement.  A Client MUST process Mole-
-   Credential whatever the response status.
+   Credential without replacement.  A missing Mole-Credential field
+   carries no such decision.  A Client MUST process Mole-Credential
+   whatever the response status.
 
    A server sending Mole-Credential MUST also send Cache-Control: no-
    store.  A server answering cross-origin requests MUST list WWW-
@@ -248,14 +255,17 @@ Table of Contents
 
    Authorization: Mole presentation="<credential-presentation>"
 
-   The Moderator runs ProcessPresentation.  For an accepted result it
-   attempts the protected operation and returns its status, with:
+   The Moderator runs ProcessPresentation.  Every response to an
+   accepted presentation, fresh or not, MUST carry the recorded update,
+   including when the protected operation fails with a 4xx or 5xx
+   status:
 
    Mole-Credential: update="<optional-credential-update>"
 
-   For a result returned again on retry, it returns 409 (Section 15.5.10
-   of [HTTP]) with the same header and does not attempt the protected
-   operation.
+   For a fresh result the Moderator attempts the protected operation and
+   returns its status.  For a result that is not fresh, it MUST return
+   409 (Section 15.5.10 of [HTTP]) and MUST NOT attempt the protected
+   operation.  A rejected presentation MUST NOT carry Mole-Credential.
 
    A Client that receives no Mole-Credential after sending a
    presentation keeps its pending state and MAY recover (Section 6.4).
@@ -293,19 +303,23 @@ Table of Contents
      | invalid authentication |                    |                 |
      +------------------------+--------------------+-----------------+
      | Rejected by policy     | 403                | none            |
+     | before acceptance      |                    |                 |
      +------------------------+--------------------+-----------------+
      | Credential issued      | 200                | response        |
      +------------------------+--------------------+-----------------+
-     | Accepted presentation  | protected          | update          |
-     |                        | operation's status |                 |
+     | Fresh accepted         | protected          | update          |
+     | presentation           | operation's status |                 |
      +------------------------+--------------------+-----------------+
-     | Result returned again  | 409                | update          |
-     | on retry               |                    |                 |
+     | Accepted presentation, | 409                | update          |
+     | not fresh, or recovery |                    |                 |
      +------------------------+--------------------+-----------------+
 
                           Table 4: Mole responses
 
-   A 401 response MUST carry a Mole challenge for the required exchange.
+   The Moderator MUST use these rules for every credential type.  A 401
+   response MUST carry a Mole challenge for the required exchange.  A
+   403 returned by the protected operation after a fresh acceptance is
+   that operation's status, and carries the update.
 
 7.  Security Considerations
 

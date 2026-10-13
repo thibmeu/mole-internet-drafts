@@ -2148,8 +2148,8 @@ CreatePresentationAndUpdate(credential, credential_challenge, configuration)
 ProcessPresentation(
     presentation_and_update, credential_challenge, policy, configuration)
   -&gt; INVALID
-   | ACCEPTED_NO_UPDATE
-   | ACCEPTED_WITH_UPDATE(update)
+   | ACCEPTED_NO_UPDATE(fresh)
+   | ACCEPTED_WITH_UPDATE(update, fresh)
 FinalizeUpdate(presentation_state, update, configuration)
   -&gt; credential | INVALID
 </pre><a href="#section-5.1-2" class="pilcrow">¶</a>
@@ -2163,8 +2163,10 @@ was consumed without replacement. <code>ACCEPTED_WITH_UPDATE</code> carries the 
 <code>FinalizeUpdate</code>. The Client does not call <code>FinalizeUpdate</code> for
 <code>ACCEPTED_NO_UPDATE</code>. A complete protocol specification defines its Context
 derivation, replay protection, and retry behavior. The Moderator completes that
-replay protection before returning an accepted result. A result returned
-again for a retry authorizes no further operation.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
+replay protection before returning an accepted result. <code>fresh</code> is true when
+this call recorded the result, and false when it returns a result already
+recorded for a retry. Only a fresh result authorizes the protected
+operation.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="credential-act">
@@ -2269,8 +2271,7 @@ HTTP request information needed to resend them to their original
 destination (<a href="#act-missing-refund" class="auto internal xref">Section 5.2.5</a>). <code>ProcessPresentation</code> returns
 <code>ACCEPTED_WITH_UPDATE</code> with a refund, and <code>ACCEPTED_NO_UPDATE</code> when the
 Moderator declines to refund. For a retry answered from a record
-(<a href="#act-missing-refund" class="auto internal xref">Section 5.2.5</a>), it returns the recorded result, which carries the
-Update only and does not authorize the protected operation.
+(<a href="#act-missing-refund" class="auto internal xref">Section 5.2.5</a>), it returns the recorded result with <code>fresh</code> false.
 The ACT response rules in <span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span> define the HTTP status and
 <code>Mole-Credential</code> header for each outcome.<a href="#section-5.2-7" class="pilcrow">¶</a></p>
 <div id="act-configuration">
@@ -2770,17 +2771,16 @@ distinct from the endorsement <code>challenge_digest</code> of <a href="#challen
 <ol start="1" type="1" class="normal type-1" id="section-5.3.2-9">
 <li id="section-5.3.2-9.1">
               <p id="section-5.3.2-9.1.1">It looks up <code>(token.token_key_id, token.nonce)</code> in its record store. If a
-record exists, it returns the recorded result only if the record holds
-the SHA-256 digest of the received <code>PresentationAndUpdate</code> octets and is
-still retained. Otherwise it rejects the presentation. Only an unrecorded
+record exists, it returns the recorded result with <code>fresh</code> false, only
+if the record holds the SHA-256 digest of the received
+<code>PresentationAndUpdate</code> octets and is still retained. Otherwise it rejects the presentation. Only an unrecorded
 nonce proceeds to step 2.<a href="#section-5.3.2-9.1.1" class="pilcrow">¶</a></p>
 </li>
             <li id="section-5.3.2-9.2">
               <p id="section-5.3.2-9.2.1">It verifies the token as specified by <span>[<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span> against the
 accepted key matching <code>token.token_type</code> and <code>token.token_key_id</code>, and
-that key's <code>TokenChallenge</code>, including
-<code>Token.challenge_digest</code>. It rejects the presentation if verification
-fails.<a href="#section-5.3.2-9.2.1" class="pilcrow">¶</a></p>
+that key's <code>TokenChallenge</code>, including <code>Token.challenge_digest</code>. It
+rejects the presentation if verification fails.<a href="#section-5.3.2-9.2.1" class="pilcrow">¶</a></p>
 </li>
             <li id="section-5.3.2-9.3">
               <p id="section-5.3.2-9.3.1">It decides under its policy whether to issue an update and, if so, runs
@@ -2794,11 +2794,11 @@ step fails, or it is unknown whether the result was recorded, no update is
 released.<a href="#section-5.3.2-9.4.1" class="pilcrow">¶</a></p>
 </li>
             <li id="section-5.3.2-9.5">
-              <p id="section-5.3.2-9.5.1">It returns the recorded result and attempts the protected operation.<a href="#section-5.3.2-9.5.1" class="pilcrow">¶</a></p>
+              <p id="section-5.3.2-9.5.1">It returns the recorded result with <code>fresh</code> true and attempts the
+protected operation.<a href="#section-5.3.2-9.5.1" class="pilcrow">¶</a></p>
 </li>
           </ol>
-<p id="section-5.3.2-10">A result returned from step 1 authorizes no operation. With no update the
-Client is out of credentials.<a href="#section-5.3.2-10" class="pilcrow">¶</a></p>
+<p id="section-5.3.2-10">With no update the Client is out of credentials.<a href="#section-5.3.2-10" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="retry-after-a-lost-response">
@@ -2837,9 +2837,36 @@ the binding between update and presented credential. Open problem.<a href="#sect
 <a href="#section-6" class="section-number selfRef">6. </a><a href="#name-key-rotation-and-discovery" class="section-name selfRef">Key Rotation and Discovery</a>
       </h2>
 <p id="section-6-1">Each Anchor and Moderator publishes a configuration, which a Client fetches
-over an authenticated channel. Configurations are described in CDDL
-<span>[<a href="#CDDL" class="cite xref">CDDL</a>]</span>:<a href="#section-6-1" class="pilcrow">¶</a></p>
-<div class="lang-cddl sourcecode" id="section-6-2">
+over an authenticated channel. For example, a Moderator accepting Rollatini
+Endorsements from two Anchors and issuing ACT Credentials publishes, in JSON
+with byte strings truncated:<a href="#section-6-1" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-6-2">
+<pre>
+{
+  "issuance-uri": "https://moderator.example/mole/issue",
+  "endorsements": [
+    {
+      "endorsement-type": 2,
+      "ciphersuite": "P256-SHA256",
+      "issuance-epoch": "MjAyNi0xMA",
+      "anchor-set": ["A8mT...", "Ao3L..."]
+    }
+  ],
+  "credential-keys": [
+    {
+      "credential-type": 1,
+      "credential-key": "AjRx...",
+      "ciphersuite": "P256-SHA256",
+      "balance-width": 8,
+      "credential-context": "bW9kZXJhdG9yLXYx",
+      "result-retention": 300
+    }
+  ]
+}
+</pre><a href="#section-6-2" class="pilcrow">¶</a>
+</div>
+<p id="section-6-3">Configurations are described in CDDL <span>[<a href="#CDDL" class="cite xref">CDDL</a>]</span>:<a href="#section-6-3" class="pilcrow">¶</a></p>
+<div class="lang-cddl sourcecode" id="section-6-4">
 <pre>
 moderator-configuration = {
   "issuance-uri": tstr,
@@ -2889,22 +2916,22 @@ $credential-key /= {
   "result-retention": uint,         ; seconds
   * tstr =&gt; any
 }
-</pre><a href="#section-6-2" class="pilcrow">¶</a>
+</pre><a href="#section-6-4" class="pilcrow">¶</a>
 </div>
-<p id="section-6-3"><code>grant-uri</code> and <code>issuance-uri</code> are absolute HTTPS URIs. Other protocols,
+<p id="section-6-5"><code>grant-uri</code> and <code>issuance-uri</code> are absolute HTTPS URIs. Other protocols,
 such as <a href="#longfellow" class="auto internal xref">Section 4.5</a>, add entries to the sockets. A Client ignores unknown
-members and skips entries of unknown types.<a href="#section-6-3" class="pilcrow">¶</a></p>
-<p id="section-6-4"><code>endorsements</code> lists the endorsement types the Moderator accepts. A
+members and skips entries of unknown types.<a href="#section-6-5" class="pilcrow">¶</a></p>
+<p id="section-6-6"><code>endorsements</code> lists the endorsement types the Moderator accepts. A
 Rollatini entry is one accepted Anchor set, with the <code>ctx_iss</code> shared by all
 its Anchors. A Moderator accepting several epochs publishes one entry per
 epoch. Order within <code>anchor-set</code> matters: Rollatini proof branches match
-Anchors by position.<a href="#section-6-4" class="pilcrow">¶</a></p>
-<p id="section-6-5">ACT nullifiers <span class="bcp14">MUST</span> remain recorded while their credential context is
+Anchors by position.<a href="#section-6-6" class="pilcrow">¶</a></p>
+<p id="section-6-7">ACT nullifiers <span class="bcp14">MUST</span> remain recorded while their credential context is
 accepted for their key. A Moderator that publishes different configurations
-to different Clients partitions them (<span>[<a href="#ARCHITECTURE" class="cite xref">ARCHITECTURE</a>]</span>).<a href="#section-6-5" class="pilcrow">¶</a></p>
-<p id="section-6-6">The serialization, for instance JSON or CBOR, is to be defined with the
+to different Clients partitions them (<span>[<a href="#ARCHITECTURE" class="cite xref">ARCHITECTURE</a>]</span>).<a href="#section-6-7" class="pilcrow">¶</a></p>
+<p id="section-6-8">The serialization, for instance JSON or CBOR, is to be defined with the
 configuration's authentication and consistency checks. In JSON, <code>bstr</code>
-values are unpadded base64url strings.<a href="#section-6-6" class="pilcrow">¶</a></p>
+values are unpadded base64url strings.<a href="#section-6-8" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="privacy-considerations">

@@ -1305,7 +1305,7 @@ Every binary value in a header is the unpadded base64url encoding
           </svg><a href="#section-3-1.1" class="pilcrow">¶</a>
 </div>
 </div>
-<p id="section-3-2">A challenge carries exactly one of these parameters:<a href="#section-3-2" class="pilcrow">¶</a></p>
+<p id="section-3-2">Each <code>Mole</code> challenge carries exactly one of these payload parameters:<a href="#section-3-2" class="pilcrow">¶</a></p>
 <span id="name-challenge-parameters"></span><table class="center" id="table-1">
         <caption>
 <a href="#table-1" class="selfRef">Table 1</a>:
@@ -1351,7 +1351,8 @@ Every binary value in a header is the unpadded base64url encoding
 <code>ModeratorChallenge</code> and <code>CredentialChallenge</code> share a layout. A server
 offering a choice sends several <code>Mole</code> challenges. The Client picks one it
 supports and <span class="bcp14">MUST</span> ignore challenges of unknown type.<a href="#section-3-4" class="pilcrow">¶</a></p>
-<p id="section-3-5">An <code>Authorization</code> header carries exactly one of these parameters:<a href="#section-3-5" class="pilcrow">¶</a></p>
+<p id="section-3-5">A <code>Mole</code> credential in <code>Authorization</code> carries exactly one of these payload
+parameters:<a href="#section-3-5" class="pilcrow">¶</a></p>
 <span id="name-authorization-parameters"></span><table class="center" id="table-2">
         <caption>
 <a href="#table-2" class="selfRef">Table 2</a>:
@@ -1390,10 +1391,15 @@ supports and <span class="bcp14">MUST</span> ignore challenges of unknown type.<
         </tbody>
       </table>
 <p id="section-3-7">Parameters follow the auth-param syntax of <span><a href="https://rfc-editor.org/rfc/rfc9110#section-11.2" class="relref">Section 11.2</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>; a value
-may be a token or a quoted-string. A recipient ignores unknown parameters.
-It <span class="bcp14">MUST</span> reject as malformed a header with a repeated parameter, none or more
-than one of the parameters above, a value that is not canonical unpadded
-base64url, or a decoded value that does not parse as the named structure.<a href="#section-3-7" class="pilcrow">¶</a></p>
+may be a token or a quoted-string. One <code>WWW-Authenticate</code> field can carry
+several challenges (<span><a href="https://rfc-editor.org/rfc/rfc9110#section-11.6.1" class="relref">Section 11.6.1</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>), and the rules below apply to
+each <code>Mole</code> challenge or credential separately. A recipient ignores unknown
+parameters, including <code>realm</code>. It <span class="bcp14">MUST</span> reject as malformed a challenge or
+credential with a repeated parameter, or with none or more than one of the
+payload parameters above. It <span class="bcp14">MUST</span> reject a payload value that is not
+canonical unpadded base64url, or whose decoded value does not parse as the
+named structure. A Client ignores a malformed challenge and can use another
+one.<a href="#section-3-7" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="mole-credential">
@@ -1434,8 +1440,9 @@ one parameter, with the syntax above:<a href="#section-4-1" class="pilcrow">¶</
         </tbody>
       </table>
 <p id="section-4-3">An absent <code>CredentialUpdate</code> means the Moderator consumed the Credential
-without replacement. A Client <span class="bcp14">MUST</span> process <code>Mole-Credential</code> whatever the
-response status.<a href="#section-4-3" class="pilcrow">¶</a></p>
+without replacement. A missing <code>Mole-Credential</code> field carries no such
+decision. A Client <span class="bcp14">MUST</span> process <code>Mole-Credential</code> whatever the response
+status.<a href="#section-4-3" class="pilcrow">¶</a></p>
 <p id="section-4-4">A server sending <code>Mole-Credential</code> <span class="bcp14">MUST</span> also send <code>Cache-Control: no-store</code>.
 A server answering cross-origin requests <span class="bcp14">MUST</span> list <code>WWW-Authenticate</code> and
 <code>Mole-Credential</code> in <code>Access-Control-Expose-Headers</code>.<a href="#section-4-4" class="pilcrow">¶</a></p>
@@ -1529,16 +1536,18 @@ instance to raise a limit. Clients then apply the greasing rules of
 Authorization: Mole presentation="&lt;credential-presentation&gt;"
 </pre><a href="#section-6.3-5" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3-6">The Moderator runs <code>ProcessPresentation</code>. For an accepted result it attempts
-the protected operation and returns its status, with:<a href="#section-6.3-6" class="pilcrow">¶</a></p>
+<p id="section-6.3-6">The Moderator runs <code>ProcessPresentation</code>. Every response to an accepted
+presentation, fresh or not, <span class="bcp14">MUST</span> carry the recorded update, including when
+the protected operation fails with a <code>4xx</code> or <code>5xx</code> status:<a href="#section-6.3-6" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-6.3-7">
 <pre>
 Mole-Credential: update="&lt;optional-credential-update&gt;"
 </pre><a href="#section-6.3-7" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3-8">For a result returned again on retry, it returns <code>409</code>
-(<span><a href="https://rfc-editor.org/rfc/rfc9110#section-15.5.10" class="relref">Section 15.5.10</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>) with the same header and does not attempt the
-protected operation.<a href="#section-6.3-8" class="pilcrow">¶</a></p>
+<p id="section-6.3-8">For a fresh result the Moderator attempts the protected operation and
+returns its status. For a result that is not fresh, it <span class="bcp14">MUST</span> return <code>409</code>
+(<span><a href="https://rfc-editor.org/rfc/rfc9110#section-15.5.10" class="relref">Section 15.5.10</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>) and <span class="bcp14">MUST NOT</span> attempt the protected operation.
+A rejected presentation <span class="bcp14">MUST NOT</span> carry <code>Mole-Credential</code>.<a href="#section-6.3-8" class="pilcrow">¶</a></p>
 <p id="section-6.3-9">A Client that receives no <code>Mole-Credential</code> after sending a presentation
 keeps its pending state and <span class="bcp14">MAY</span> recover (<a href="#recovery" class="auto internal xref">Section 6.4</a>).<a href="#section-6.3-9" class="pilcrow">¶</a></p>
 <p id="section-6.3-10">Each credential type <span class="bcp14">MUST</span> define the challenge fields that partition cached
@@ -1605,7 +1614,7 @@ still retained, and <code>401</code> otherwise, whether or not a record exists. 
               <td class="text-left" rowspan="1" colspan="1">none</td>
             </tr>
             <tr>
-              <td class="text-left" rowspan="1" colspan="1">Rejected by policy</td>
+              <td class="text-left" rowspan="1" colspan="1">Rejected by policy before acceptance</td>
               <td class="text-left" rowspan="1" colspan="1">
                 <code>403</code>
 </td>
@@ -1621,14 +1630,14 @@ still retained, and <code>401</code> otherwise, whether or not a record exists. 
 </td>
             </tr>
             <tr>
-              <td class="text-left" rowspan="1" colspan="1">Accepted presentation</td>
+              <td class="text-left" rowspan="1" colspan="1">Fresh accepted presentation</td>
               <td class="text-left" rowspan="1" colspan="1">protected operation's status</td>
               <td class="text-left" rowspan="1" colspan="1">
                 <code>update</code>
 </td>
             </tr>
             <tr>
-              <td class="text-left" rowspan="1" colspan="1">Result returned again on retry</td>
+              <td class="text-left" rowspan="1" colspan="1">Accepted presentation, not fresh, or recovery</td>
               <td class="text-left" rowspan="1" colspan="1">
                 <code>409</code>
 </td>
@@ -1639,7 +1648,10 @@ still retained, and <code>401</code> otherwise, whether or not a record exists. 
           </tbody>
         </table>
 </div>
-<p id="section-6.5-2">A <code>401</code> response <span class="bcp14">MUST</span> carry a <code>Mole</code> challenge for the required exchange.<a href="#section-6.5-2" class="pilcrow">¶</a></p>
+<p id="section-6.5-2">The Moderator <span class="bcp14">MUST</span> use these rules for every credential type. A <code>401</code>
+response <span class="bcp14">MUST</span> carry a <code>Mole</code> challenge for the required exchange. A <code>403</code>
+returned by the protected operation after a fresh acceptance is that
+operation's status, and carries the update.<a href="#section-6.5-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
