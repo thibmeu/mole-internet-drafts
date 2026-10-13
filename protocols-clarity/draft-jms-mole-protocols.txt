@@ -704,8 +704,8 @@ CreatePresentationAndUpdate(credential, credential_challenge, configuration)
 ProcessPresentation(
     presentation_and_update, credential_challenge, policy, configuration)
   -> INVALID
-   | ACCEPTED_NO_UPDATE
-   | ACCEPTED_WITH_UPDATE(update)
+   | ACCEPTED_NO_UPDATE(fresh)
+   | ACCEPTED_WITH_UPDATE(update, fresh)
 FinalizeUpdate(presentation_state, update, configuration)
   -> credential | INVALID
 
@@ -720,8 +720,9 @@ FinalizeUpdate(presentation_state, update, configuration)
    ACCEPTED_NO_UPDATE.  A complete protocol specification defines its
    Context derivation, replay protection, and retry behavior.  The
    Moderator completes that replay protection before returning an
-   accepted result.  A result returned again for a retry authorizes no
-   further operation.
+   accepted result. fresh is true when this call recorded the result,
+   and false when it returns a result already recorded for a retry.
+   Only a fresh result authorizes the protected operation.
 
 5.2.  Anonymous Credit Tokens (ACT)
 
@@ -785,10 +786,9 @@ FinalizeUpdate(presentation_state, update, configuration)
    their original destination (Section 5.2.5).  ProcessPresentation
    returns ACCEPTED_WITH_UPDATE with a refund, and ACCEPTED_NO_UPDATE
    when the Moderator declines to refund.  For a retry answered from a
-   record (Section 5.2.5), it returns the recorded result, which carries
-   the Update only and does not authorize the protected operation.  The
-   ACT response rules in [HTTP-TRANSPORT] define the HTTP status and
-   Mole-Credential header for each outcome.
+   record (Section 5.2.5), it returns the recorded result with fresh
+   false.  The ACT response rules in [HTTP-TRANSPORT] define the HTTP
+   status and Mole-Credential header for each outcome.
 
 5.2.1.  Configuration
 
@@ -1167,11 +1167,11 @@ FinalizeUpdate(presentation_state, update, configuration)
    The Moderator processes a presentation as follows:
 
    1.  It looks up (token.token_key_id, token.nonce) in its record
-       store.  If a record exists, it returns the recorded result only
-       if the record holds the SHA-256 digest of the received
-       PresentationAndUpdate octets and is still retained.  Otherwise it
-       rejects the presentation.  Only an unrecorded nonce proceeds to
-       step 2.
+       store.  If a record exists, it returns the recorded result with
+       fresh false, only if the record holds the SHA-256 digest of the
+       received PresentationAndUpdate octets and is still retained.
+       Otherwise it rejects the presentation.  Only an unrecorded nonce
+       proceeds to step 2.
 
    2.  It verifies the token as specified by [PRIVACYPASS-AUTH] against
        the accepted key matching token.token_type and
@@ -1189,11 +1189,10 @@ FinalizeUpdate(presentation_state, update, configuration)
        If any step fails, or it is unknown whether the result was
        recorded, no update is released.
 
-   5.  It returns the recorded result and attempts the protected
-       operation.
+   5.  It returns the recorded result with fresh true and attempts the
+       protected operation.
 
-   A result returned from step 1 authorizes no operation.  With no
-   update the Client is out of credentials.
+   With no update the Client is out of credentials.
 
 5.3.3.  Retry after a lost response
 
