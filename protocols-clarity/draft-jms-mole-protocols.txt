@@ -436,11 +436,12 @@ Table of Contents
       [IHAT-ROLLATINI].  It determines Element, Scalar, and all
       cryptographic encodings.
 
-   Anchor Public Key  pkA, an Element, as generated in [IHAT-ROLLATINI],
-      with a stable key ID.
+   Anchor Public Key  pkA, an Element, as generated in [IHAT-ROLLATINI].
+      An Anchor has one key per grant endpoint.
 
-   Issuance Context  ctx_iss, the canonical encoding of the issuance
-      epoch.  Endorsements are valid for that epoch, see Section 6.
+   Issuance Context  ctx_iss, the issuance epoch the Anchor currently
+      issues under.  It is an opaque byte string.  Endorsements are
+      valid for that epoch, see Section 6.
 
    Redemption Context  ctx_red, the ASCII string "MoLE-Rollatini-
       ctx_red-v1", without a terminating NUL byte.  This fixed, domain-
@@ -490,15 +491,18 @@ Table of Contents
    The type-specific Redemption payload is the encoding of Redemption in
    [IHAT-ROLLATINI].  RedeemRequest derives challenge_digest as in
    Section 4.1 and calls Redeem(anchor_set, index, endorsement, ctx_iss,
-   ctx_red, challenge_digest).  The ordered anchor_set comes from
-   Moderator configuration; index selects the Anchor that issued the
-   Endorsement.  The Client rejects a set that omits its Anchor.
+   ctx_red, challenge_digest).  The Client uses the Moderator's accepted
+   Anchor set for the ctx_iss its Endorsement was issued under
+   (Section 6). index is the position of the entry whose key equals the
+   issuing pkA.  The Client fails if no set has that ctx_iss or the set
+   omits its Anchor.
 
-   FinalizeRedeem checks that the issuance epoch and Moderator Challenge
-   are accepted, decodes the payload, and calls
+   The Redemption does not carry ctx_iss.  FinalizeRedeem checks that
+   the Moderator Challenge is accepted, decodes the payload, and calls
    VerifyRedemption(anchor_set, redemption, ctx_iss, ctx_red,
-   challenge_digest).  It returns {nf}, scoped to ctx_iss in the
-   Moderator's store.  Any decoding or verification failure returns
+   challenge_digest) for each accepted Anchor set until one succeeds.
+   It returns {nf}, scoped to the matching ctx_iss in the Moderator's
+   store.  Any decoding failure, or failure under every set, returns
    INVALID.  The common replay protection rules apply before Credential
    issuance.  The same nf is exposed on repeated redemptions, including
    across Moderators; the scheme does not enforce global single use.
@@ -697,29 +701,25 @@ CreatePresentationAndUpdate(credential, credential_challenge, configuration)
   -> (presentation_state, presentation_and_update) | INVALID
 ProcessPresentation(
     presentation_and_update, credential_challenge, policy, configuration)
-  -> INVALID | ACCEPTED(update?) | RECOVERED(update?)
+  -> INVALID
+   | ACCEPTED_NO_UPDATE
+   | ACCEPTED_WITH_UPDATE(update)
 FinalizeUpdate(presentation_state, update, configuration)
   -> credential | INVALID
 
    CreateIssuanceRequest, FinalizeIssuance, CreatePresentationAndUpdate,
    and FinalizeUpdate run at the Client.  IssueCredential and
    ProcessPresentation run at the Moderator.  State values are local and
-   are not sent on the wire.
-
-   ProcessPresentation returns:
-
-   *  INVALID: nothing is recorded.
-
-   *  ACCEPTED(update?): this call recorded the result.  It authorizes
-      one attempt of the protected operation.
-
-   *  RECOVERED(update?): a result was already recorded for this
-      presentation.  It returns that result and authorizes nothing.
-
-   An absent update means the Credential was consumed without
-   replacement.  The Client calls FinalizeUpdate only when update is
-   present.  Each protocol defines its Context derivation, replay
-   protection, and retry behavior.
+   are not sent on the wire.  ACCEPTED_NO_UPDATE means that the
+   presentation succeeded but the Credential was consumed without
+   replacement.  ACCEPTED_WITH_UPDATE carries the encoded Update that
+   the Client finalizes into its replacement Credential by calling
+   FinalizeUpdate.  The Client does not call FinalizeUpdate for
+   ACCEPTED_NO_UPDATE.  A complete protocol specification defines its
+   Context derivation, replay protection, and retry behavior.  The
+   Moderator completes that replay protection before returning an
+   accepted result.  A result returned again for a retry authorizes no
+   further operation.
 
 5.2.  Anonymous Credit Tokens (ACT)
 
@@ -780,10 +780,13 @@ FinalizeUpdate(presentation_state, update, configuration)
    pkM, credential_context, L, and Moderator identity and endpoint
    stored with the spent Credential, and the PresentationAndUpdate
    octets with the HTTP request information needed to resend them to
-   their original destination (Section 5.2.5).  The update of
-   ProcessPresentation is the refund, or absent when the Moderator
-   declines to refund.  A retry answered from a record returns RECOVERED
-   (Section 5.2.5).
+   their original destination (Section 5.2.5).  ProcessPresentation
+   returns ACCEPTED_WITH_UPDATE with a refund, and ACCEPTED_NO_UPDATE
+   when the Moderator declines to refund.  For a retry answered from a
+   record (Section 5.2.5), it returns the recorded result, which carries
+   the Update only and does not authorize the protected operation.  The
+   ACT response rules in [HTTP-TRANSPORT] define the HTTP status and
+   Mole-Credential header for each outcome.
 
 5.2.1.  Configuration
 
@@ -844,32 +847,30 @@ FinalizeUpdate(presentation_state, update, configuration)
    the request with the truncated identifier of the key and the
    credential_context it holds in its configuration.
 
-   The Moderator processes a CredentialRequest as follows.  Steps 1 to 3
-   can run in any order.
+   The Moderator processes a CredentialRequest in this order:
 
    1.  It selects the active key whose truncated_key_id matches, and
        checks that credential_context is the context it issues under for
-       that key.
+       that key.  It rejects the request if either check fails.
 
    2.  It checks that request deserializes and that its proof verifies,
-       as IssueResponse does.
+       as IssueResponse does, and rejects the request otherwise.
 
    3.  It validates the accompanying redemption with FinalizeRedeem
        (Section 4).
 
    4.  It chooses the initial balance c under its policy and runs
-       IssueResponse(skM, ctx_cred, c, request).
+       IssueResponse(skM, ctx_cred, c, request).  It then records the
+       replay_protection_ids returned by FinalizeRedeem.  Recording is
+       atomic and fails if any identifier is already recorded.  If any
+       step fails, or it is unknown whether the identifiers were
+       recorded, no response is released.
 
-   5.  It atomically records the replay_protection_ids returned by
-       FinalizeRedeem, failing if any is already recorded.
+   5.  It returns the result in a CredentialResponse.
 
-   6.  It returns the result in a CredentialResponse.
-
-   If any step fails, or it is unknown whether step 5 succeeded, the
-   Moderator releases no response.  A request rejected before step 5
-   does not consume the Endorsement.  A response lost after step 5 is
-   not recoverable: the Endorsement is consumed, and the Client needs a
-   new one.
+   A request rejected before recording does not cost the Client its
+   Endorsement.  A response lost after recording cannot be recovered,
+   and the Client needs a new Endorsement.
 
    The Client runs FinalizeIssue(pkM, ctx_cred, state, response) and
    stores the resulting Credential with pkM, credential_context, L, the
@@ -899,7 +900,7 @@ FinalizeUpdate(presentation_state, update, configuration)
    credential_context repeats the configured value, so that a Client can
    tell that its Credential has expired without refetching the
    configuration.  It is the challenge field that partitions cached
-   Credentials.
+   Credentials ([HTTP-TRANSPORT]).
 
 5.2.3.1.  Challenge Binding
 
@@ -909,8 +910,9 @@ FinalizeUpdate(presentation_state, update, configuration)
 
    where credential_challenge is the complete TLS encoding of the
    CredentialChallenge (Section 3), including its credential_type and
-   the length-prefixed ACT Challenge, not a textual encoding of it.
-   This digest is separate from the redemption digest of Section 4.1.
+   the length-prefixed ACT Challenge.  The Client hashes those octets,
+   not their base64url encoding.  This digest is separate from the
+   redemption digest of Section 4.1.
 
    The presentation does not carry the challenge.  The Moderator
    determines the challenge a presentation answers from its policy and
@@ -972,12 +974,12 @@ FinalizeUpdate(presentation_state, update, configuration)
 
    1.  It checks that key_id names an active key, then looks up (key_id,
        spend.k) in the nullifier store.  If a record exists, the
-       Moderator returns RECOVERED with its update only if the record
-       holds the SHA-256 digest of the received PresentationAndUpdate
-       octets, its result is still retained, and its credential context
-       is still accepted for that key (Section 5.2.5).  The challenge
-       may have expired.  Otherwise the presentation is rejected.  Only
-       an unrecorded nullifier proceeds to step 2.
+       Moderator answers from it only if it holds the SHA-256 digest of
+       the received PresentationAndUpdate octets, its result is still
+       retained, and its credential context is still accepted for that
+       key (Section 5.2.5).  The challenge may have expired.  A record
+       that fails any of these checks causes the presentation to be
+       rejected.  Only an unrecorded nullifier proceeds to step 2.
 
    2.  It determines the challenge (Section 5.2.3.1), and checks that
        its credential_context is accepted for that key and that spend.s
@@ -993,14 +995,16 @@ FinalizeUpdate(presentation_state, update, configuration)
        Recording is atomic and MUST fail if a result is already recorded
        under that nullifier or if the key or context is no longer
        accepted, so of two racing presentations at most one is recorded.
-       If recording fails because a result exists, the Moderator
-       continues as in step 1.  If any step fails, or it is unknown
-       whether the result was recorded, no refund is released.
+       If any step fails, or it is unknown whether the result was
+       recorded, no refund is released.  The Moderator MUST NOT attempt
+       the protected operation unless this request's result was
+       successfully recorded.
 
-   4.  It returns ACCEPTED with the recorded update: the refund, or
-       absent for NoUpdate.  It attempts the protected operation only
-       after this.  The response carries the update even when the
-       protected operation fails.
+   4.  It attempts the protected operation.  Its HTTP response carries
+       the recorded credential result as an Update: the refund, or, for
+       NoUpdate, an absent update, which leaves the Client without a
+       replacement.  The Moderator MUST include this result even when
+       the protected operation fails ([HTTP-TRANSPORT]).
 
    Spending credits authorizes one attempt of the protected operation.
    A failure after step 3 can charge the Client without completing step
@@ -1077,13 +1081,13 @@ FinalizeUpdate(presentation_state, update, configuration)
 
    *  For a recorded NoUpdate, the Moderator returns an absent update.
 
-   The recovery handle is key_id || SerializeScalar(spend.k) || SHA-
-   256(PresentationAndUpdate).  A Moderator treats it as the byte-
-   identical presentation.
+   The recovery handle ([HTTP-TRANSPORT]) is key_id ||
+   SerializeScalar(spend.k) || SHA-256(PresentationAndUpdate).
 
-   Recovery returns RECOVERED.  The Moderator MUST NOT authorize another
-   operation for a recorded nullifier, and MUST NOT change a recorded
-   decision.
+   The Moderator MUST NOT authorize another operation for a recorded
+   nullifier, and MUST NOT change a recorded decision.  It returns the
+   recovered result with HTTP status 409 as specified in
+   [HTTP-TRANSPORT].
 
    Once recovery ends, a retry is rejected, and the Client MUST discard
    the spend state.  To continue, it runs Redeem & Issue.  The Moderator
@@ -1094,23 +1098,20 @@ FinalizeUpdate(presentation_state, update, configuration)
 
    A SpendMessage grows linearly in L ([ACT]).  With P-256 and L = 32,
    it is about 4.5 KB when one of s and a is nonzero and 8.7 KB when
-   both are, before any transport encoding.  Deployments with tight size
-   limits should choose L accordingly.
+   both are, before base64url encoding in the Authorization header.
+   Deployments with tight header limits should choose L accordingly.
 
 5.3.  Privacy Pass with a Reverse Flow
 
    Credential type: 0x0002.
 
    The Credential is a single Privacy Pass token.  The Moderator's
-   configuration names both the registered token type used for
-   presentation and the registered token type used for update issuance.
-   Presentation consumes the token.  The update, if granted, is a fresh
-   token issued through [REVERSE-FLOW], with redemption in place of
-   attestation.
-
-   For the protocol described here, the presented and reissued token use
-   the same token type and Moderator key.  Changing either partitions
-   Clients and leaks state.
+   configuration names one issuance token type and key, used by Redeem &
+   Issue and by updates, and the token types and keys it accepts for
+   presentation.  The accepted set includes the issuance one, and can
+   include others, for instance a key being rotated out.  Presentation
+   consumes the token.  The update, if granted, is a fresh token issued
+   through [REVERSE-FLOW], with redemption in place of attestation.
 
 5.3.1.  Redeem & Issue
 
@@ -1143,47 +1144,62 @@ FinalizeUpdate(presentation_state, update, configuration)
    ProcessPresentation, and FinalizeUpdate.
 
    The token field carries a Token as defined in [PRIVACYPASS-AUTH].
-   Privacy Pass names its cryptographic Context TokenChallenge.  In
-   MoLE, the type-specific body of CredentialChallenge carries that
-   configured TokenChallenge.  It is therefore both sent by the
-   Moderator as part of a Challenge and supplied to the Privacy Pass
-   replacement-issuance and verification operations as their Context.
-   Initial issuance obtains the same TokenChallenge from authenticated
-   configuration.
+   The type-specific body of CredentialChallenge is the configured
+   TokenChallenge, which is also the Context for issuance and
+   verification.  Initial issuance takes it from configuration.  A
+   Client MUST reject a CredentialChallenge whose TokenChallenge differs
+   from the configured one.
 
-   TokenChallenge is fixed when the token is issued.  It MUST be stable
-   for every Client using the same configured credential type, key, and
-   epoch, and MUST NOT contain a per-Client or per-request value.  This
-   is necessary because a replacement token is issued before the
-   operation in which it will be presented.  The Privacy Pass
-   Token.challenge_digest field MUST equal SHA-256 over the encoded
-   configured TokenChallenge.  It is distinct from the MoLE endorsement
-   challenge_digest defined in Section 4.1.  The Moderator MUST reject a
-   token carrying any other digest.  Replay protection comes from token
-   single use.  The Moderator MUST verify the token as specified by
-   [PRIVACYPASS-AUTH] against the configured token type, key, and
-   TokenChallenge, then atomically record its nonce before accepting it.
-   An invalid or previously recorded nonce is rejected, except for the
-   retry behavior below.  Holder binding remains an open limitation
-   below.
+   TokenChallenge is fixed when the token is issued, before the
+   operation in which it is presented.  It MUST be the same for every
+   Client using a given configuration, and MUST NOT contain a per-Client
+   or per-request value.  Token.challenge_digest is SHA-256 over the
+   encoded TokenChallenge.  It is distinct from the endorsement
+   challenge_digest of Section 4.1.
 
-   If the Moderator's policy allows continued access, it returns an
-   Update.  If not, it returns no update and the Client is out of
-   credentials.
+   The Moderator processes a presentation as follows:
+
+   1.  It looks up (token.token_key_id, token.nonce) in its record
+       store.  If a record exists, it returns the recorded result only
+       if the record holds the SHA-256 digest of the received
+       PresentationAndUpdate octets and is still retained.  Otherwise it
+       rejects the presentation.  Only an unrecorded nonce proceeds to
+       step 2.
+
+   2.  It verifies the token as specified by [PRIVACYPASS-AUTH] against
+       the accepted presentation token type, key, and TokenChallenge,
+       including Token.challenge_digest.  It rejects the presentation if
+       verification fails.
+
+   3.  It decides under its policy whether to issue an update and, if
+       so, runs the issuance of the configured issuance token type on
+       token_request.
+
+   4.  It atomically records under (token.token_key_id, token.nonce) the
+       digest of the PresentationAndUpdate octets and the result: the
+       Update, or no update.  Recording MUST fail if a record exists.
+       If any step fails, or it is unknown whether the result was
+       recorded, no update is released.
+
+   5.  It returns the recorded result and attempts the protected
+       operation.
+
+   A result returned from step 1 authorizes no operation.  With no
+   update the Client is out of credentials.
 
 5.3.3.  Retry after a lost response
 
    A Client that receives no response MAY retry the byte-identical
    PresentationAndUpdate only to recover from that loss.  The Moderator
-   MUST return RECOVERED with the same result while it retains the
-   idempotency record, including the same Update or the same absence of
-   an update.  It MUST reject the replay after that record expires and
-   MUST NOT issue a second Credential.  The Client MUST NOT combine the
-   same presented Credential with a different update request.  These
-   requirements are the retry semantics of [REVERSE-FLOW].
+   retains each result for the result-retention period in its
+   configuration, then keeps the nonce without the result while the
+   token key is accepted.  It MUST NOT issue a second Credential for a
+   recorded nonce.  The Client MUST NOT combine the same presented
+   Credential with a different update request.  These requirements are
+   the retry semantics of [REVERSE-FLOW].
 
-   The recovery handle is token.token_key_id || token.nonce || SHA-
-   256(PresentationAndUpdate).
+   The recovery handle ([HTTP-TRANSPORT]) is token.token_key_id ||
+   token.nonce || SHA-256(PresentationAndUpdate).
 
 5.3.4.  Limitations
 
@@ -1194,36 +1210,76 @@ FinalizeUpdate(presentation_state, update, configuration)
 
 6.  Key Rotation and Discovery
 
-   Each Anchor and Moderator publishes a directory.  A Client fetches it
-   over an authenticated channel and skips entries of unknown types.
+   Each Anchor and Moderator publishes a configuration, which a Client
+   fetches over an authenticated channel.  Configurations are described
+   in CDDL [CDDL]:
 
-   An Anchor directory contains:
+   moderator-configuration = {
+     "issuance-uri": tstr,
+     "endorsements": [+ $endorsement],
+     "credential-keys": [+ $credential-key],
+     * tstr => any
+   }
 
-   *  the grant endpoint;
+   $anchor-configuration /= {
+     "grant-uri": tstr,
+     "endorsement-type": 2,            ; Rollatini
+     "ciphersuite": tstr,
+     "anchor-key": bstr,               ; SerializeElement(pkA)
+     "issuance-epoch": bstr,           ; ctx_iss
+     * tstr => any
+   }
 
-   *  per key: the endorsement type, the public key, and the issuance
-      epoch ctx_iss.
+   $endorsement /= {
+     "endorsement-type": 1,            ; No Endorsement Required
+     * tstr => any
+   }
 
-   A Moderator directory contains:
+   $endorsement /= {
+     "endorsement-type": 2,            ; Rollatini
+     "ciphersuite": tstr,
+     "issuance-epoch": bstr,           ; ctx_iss
+     "anchor-set": [+ bstr],           ; SerializeElement(pkA), in order
+     * tstr => any
+   }
 
-   *  the Redeem & Issue endpoint;
+   $credential-key /= {
+     "credential-type": 1,             ; ACT
+     "credential-key": bstr,           ; SerializeElement(pkM)
+     "ciphersuite": tstr,
+     "balance-width": 1..64,           ; L
+     "credential-context": bstr .size (0..65534),
+     "result-retention": uint,         ; seconds
+     * tstr => any
+   }
 
-   *  per credential key: the credential type and its configuration, for
-      ACT that of Section 5.2.1;
+   $credential-key /= {
+     "credential-type": 2,             ; Privacy Pass Reverse Flow
+     "token-type": uint .size 2,
+     "token-key": bstr,
+     "token-challenge": bstr,          ; encoded TokenChallenge
+     "issuance": bool,                 ; the issuance key, exactly one
+     "result-retention": uint,         ; seconds
+     * tstr => any
+   }
 
-   *  the ordered accepted Anchor set: per Anchor, the endorsement type,
-      the public key, and the issuance epoch;
+   grant-uri and issuance-uri are absolute HTTPS URIs.  Other protocols,
+   such as Section 4.5, add entries to the sockets.  A Client ignores
+   unknown members and skips entries of unknown types.
 
-   *  any other endorsement inputs, such as those of Section 4.5.
+   endorsements lists the endorsement types the Moderator accepts.  A
+   Rollatini entry is one accepted Anchor set, with the ctx_iss shared
+   by all its Anchors.  A Moderator accepting several epochs publishes
+   one entry per epoch.  Order within anchor-set matters: Rollatini
+   proof branches match Anchors by position.
 
-   Order matters: Rollatini proof branches and Longfellow issuer inputs
-   match Anchors by position.  ACT nullifiers MUST remain recorded while
-   their credential context is accepted for their key.  A Moderator that
-   publishes different directories to different Clients partitions them
-   ([ARCHITECTURE]).
+   ACT nullifiers MUST remain recorded while their credential context is
+   accepted for their key.  A Moderator that publishes different
+   configurations to different Clients partitions them ([ARCHITECTURE]).
 
-      *Editor note.* The directory serialization, discovery, and
-      freshness remain to be defined.
+   The serialization, for instance JSON or CBOR, is to be defined with
+   the configuration's authentication and consistency checks.  In JSON,
+   bstr values are unpadded base64url strings.
 
 7.  Privacy Considerations
 
@@ -1549,6 +1605,12 @@ FinalizeUpdate(presentation_state, update, configuration)
               Progress, Internet-Draft, draft-jms-mole-architecture-00,
               6 July 2026, <https://datatracker.ietf.org/doc/html/draft-
               jms-mole-architecture-00>.
+
+   [CDDL]     Birkholz, H., Vigano, C., and C. Bormann, "Concise Data
+              Definition Language (CDDL): A Notational Convention to
+              Express Concise Binary Object Representation (CBOR) and
+              JSON Data Structures", RFC 8610, DOI 10.17487/RFC8610,
+              June 2019, <https://www.rfc-editor.org/rfc/rfc8610>.
 
    [HTTP-TRANSPORT]
               Schlesinger, S., Jackson, D., and T. Meunier, "MoLE HTTP
