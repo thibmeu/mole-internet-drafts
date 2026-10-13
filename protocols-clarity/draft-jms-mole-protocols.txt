@@ -1219,8 +1219,33 @@ FinalizeUpdate(presentation_state, update, configuration)
 6.  Key Rotation and Discovery
 
    Each Anchor and Moderator publishes a configuration, which a Client
-   fetches over an authenticated channel.  Configurations are described
-   in CDDL [CDDL]:
+   fetches over an authenticated channel.  For example, a Moderator
+   accepting Rollatini Endorsements from two Anchors and issuing ACT
+   Credentials publishes, in JSON with byte strings truncated:
+
+   {
+     "issuance-uri": "https://moderator.example/mole/issue",
+     "endorsements": [
+       {
+         "endorsement-type": 2,
+         "ciphersuite": "P256-SHA256",
+         "issuance-epoch": "MjAyNi0xMA",
+         "anchor-set": ["A8mT...", "Ao3L..."]
+       }
+     ],
+     "credential-keys": [
+       {
+         "credential-type": 1,
+         "credential-key": "AjRx...",
+         "ciphersuite": "P256-SHA256",
+         "balance-width": 8,
+         "credential-context": "bW9kZXJhdG9yLXYx",
+         "result-retention": 300
+       }
+     ]
+   }
+
+   Configurations are described in CDDL [CDDL]:
 
    moderator-configuration = {
      "issuance-uri": tstr,
