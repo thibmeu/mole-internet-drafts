@@ -498,14 +498,16 @@ Table of Contents
    omits its Anchor.
 
    The Redemption does not carry ctx_iss.  FinalizeRedeem checks that
-   the Moderator Challenge is accepted, decodes the payload, and calls
+   the Moderator Challenge is accepted.  Then, for each accepted Anchor
+   set until one succeeds, it decodes the payload against that set,
+   since the decoding depends on its size, and calls
    VerifyRedemption(anchor_set, redemption, ctx_iss, ctx_red,
-   challenge_digest) for each accepted Anchor set until one succeeds.
-   It returns {nf}, scoped to the matching ctx_iss in the Moderator's
-   store.  Any decoding failure, or failure under every set, returns
-   INVALID.  The common replay protection rules apply before Credential
-   issuance.  The same nf is exposed on repeated redemptions, including
-   across Moderators; the scheme does not enforce global single use.
+   challenge_digest).  It returns {nf}, scoped to the matching ctx_iss
+   in the Moderator's store, or INVALID if decoding or verification
+   fails under every set.  The common replay protection rules apply
+   before Credential issuance.  The same nf is exposed on repeated
+   redemptions, including across Moderators; the scheme does not enforce
+   global single use.
 
 4.5.  Longfellow
 
@@ -1144,11 +1146,16 @@ FinalizeUpdate(presentation_state, update, configuration)
    ProcessPresentation, and FinalizeUpdate.
 
    The token field carries a Token as defined in [PRIVACYPASS-AUTH].
-   The type-specific body of CredentialChallenge is the configured
-   TokenChallenge, which is also the Context for issuance and
-   verification.  Initial issuance takes it from configuration.  A
-   Client MUST reject a CredentialChallenge whose TokenChallenge differs
-   from the configured one.
+   Each configured token key has its own TokenChallenge (Section 6).  A
+   token is verified against the TokenChallenge of the key it was issued
+   under.  Initial issuance and replacements use the TokenChallenge of
+   the issuance key.
+
+   The type-specific body of CredentialChallenge is the issuance key's
+   TokenChallenge.  A Client MUST reject a CredentialChallenge whose
+   TokenChallenge differs from it.  The Client presents a token issued
+   under any accepted key, and builds token_request under the issuance
+   key.
 
    TokenChallenge is fixed when the token is issued, before the
    operation in which it is presented.  It MUST be the same for every
@@ -1167,8 +1174,9 @@ FinalizeUpdate(presentation_state, update, configuration)
        step 2.
 
    2.  It verifies the token as specified by [PRIVACYPASS-AUTH] against
-       the accepted presentation token type, key, and TokenChallenge,
-       including Token.challenge_digest.  It rejects the presentation if
+       the accepted key matching token.token_type and
+       token.token_key_id, and that key's TokenChallenge, including
+       Token.challenge_digest.  It rejects the presentation if
        verification fails.
 
    3.  It decides under its policy whether to issue an update and, if

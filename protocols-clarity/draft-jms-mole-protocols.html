@@ -1832,11 +1832,12 @@ Endorsement was issued under (<a href="#key-rotation" class="auto internal xref"
 the entry whose key equals the issuing <code>pkA</code>. The Client fails if no set has
 that <code>ctx_iss</code> or the set omits its Anchor.<a href="#section-4.4.3-1" class="pilcrow">¶</a></p>
 <p id="section-4.4.3-2">The <code>Redemption</code> does not carry <code>ctx_iss</code>. <code>FinalizeRedeem</code> checks that the
-Moderator Challenge is accepted, decodes the payload, and calls
-<code>VerifyRedemption(anchor_set, redemption, ctx_iss, ctx_red, challenge_digest)</code>
-for each accepted Anchor set until one succeeds. It returns <code>{nf}</code>, scoped to
-the matching <code>ctx_iss</code> in the Moderator's store. Any decoding failure, or
-failure under every set, returns <code>INVALID</code>.
+Moderator Challenge is accepted. Then, for each accepted Anchor set until one
+succeeds, it decodes the payload against that set, since the decoding depends
+on its size, and calls
+<code>VerifyRedemption(anchor_set, redemption, ctx_iss, ctx_red, challenge_digest)</code>.
+It returns <code>{nf}</code>, scoped to the matching <code>ctx_iss</code> in the Moderator's store,
+or <code>INVALID</code> if decoding or verification fails under every set.
 The common replay protection rules apply before Credential issuance. The
 same <code>nf</code> is exposed on repeated redemptions, including across Moderators;
 the scheme does not enforce global single use.<a href="#section-4.4.3-2" class="pilcrow">¶</a></p>
@@ -2752,47 +2753,52 @@ struct {
 <p id="section-5.3.2-4">These structures implement <code>CreatePresentationAndUpdate</code>, <code>ProcessPresentation</code>,
 and <code>FinalizeUpdate</code>.<a href="#section-5.3.2-4" class="pilcrow">¶</a></p>
 <p id="section-5.3.2-5">The <code>token</code> field carries a <code>Token</code> as defined in <span>[<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span>.
-The type-specific body of <code>CredentialChallenge</code> is the configured
-<code>TokenChallenge</code>, which is also the Context for issuance and verification.
-Initial issuance takes it from configuration. A Client <span class="bcp14">MUST</span> reject a
-<code>CredentialChallenge</code> whose <code>TokenChallenge</code> differs from the configured one.<a href="#section-5.3.2-5" class="pilcrow">¶</a></p>
-<p id="section-5.3.2-6"><code>TokenChallenge</code> is fixed when the token is issued, before the operation in
+Each configured token key has its own <code>TokenChallenge</code> (<a href="#key-rotation" class="auto internal xref">Section 6</a>).
+A token is verified against the <code>TokenChallenge</code> of the key it was issued
+under. Initial issuance and replacements use the <code>TokenChallenge</code> of the
+issuance key.<a href="#section-5.3.2-5" class="pilcrow">¶</a></p>
+<p id="section-5.3.2-6">The type-specific body of <code>CredentialChallenge</code> is the issuance key's
+<code>TokenChallenge</code>. A Client <span class="bcp14">MUST</span> reject a <code>CredentialChallenge</code> whose
+<code>TokenChallenge</code> differs from it. The Client presents a token issued under
+any accepted key, and builds <code>token_request</code> under the issuance key.<a href="#section-5.3.2-6" class="pilcrow">¶</a></p>
+<p id="section-5.3.2-7"><code>TokenChallenge</code> is fixed when the token is issued, before the operation in
 which it is presented. It <span class="bcp14">MUST</span> be the same for every Client using a given
 configuration, and <span class="bcp14">MUST NOT</span> contain a per-Client or per-request value.
 <code>Token.challenge_digest</code> is SHA-256 over the encoded <code>TokenChallenge</code>. It is
-distinct from the endorsement <code>challenge_digest</code> of <a href="#challenge-binding" class="auto internal xref">Section 4.1</a>.<a href="#section-5.3.2-6" class="pilcrow">¶</a></p>
-<p id="section-5.3.2-7">The Moderator processes a presentation as follows:<a href="#section-5.3.2-7" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3.2-8">
-<li id="section-5.3.2-8.1">
-              <p id="section-5.3.2-8.1.1">It looks up <code>(token.token_key_id, token.nonce)</code> in its record store. If a
+distinct from the endorsement <code>challenge_digest</code> of <a href="#challenge-binding" class="auto internal xref">Section 4.1</a>.<a href="#section-5.3.2-7" class="pilcrow">¶</a></p>
+<p id="section-5.3.2-8">The Moderator processes a presentation as follows:<a href="#section-5.3.2-8" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3.2-9">
+<li id="section-5.3.2-9.1">
+              <p id="section-5.3.2-9.1.1">It looks up <code>(token.token_key_id, token.nonce)</code> in its record store. If a
 record exists, it returns the recorded result only if the record holds
 the SHA-256 digest of the received <code>PresentationAndUpdate</code> octets and is
 still retained. Otherwise it rejects the presentation. Only an unrecorded
-nonce proceeds to step 2.<a href="#section-5.3.2-8.1.1" class="pilcrow">¶</a></p>
+nonce proceeds to step 2.<a href="#section-5.3.2-9.1.1" class="pilcrow">¶</a></p>
 </li>
-            <li id="section-5.3.2-8.2">
-              <p id="section-5.3.2-8.2.1">It verifies the token as specified by <span>[<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span> against the
-accepted presentation token type, key, and <code>TokenChallenge</code>, including
+            <li id="section-5.3.2-9.2">
+              <p id="section-5.3.2-9.2.1">It verifies the token as specified by <span>[<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span> against the
+accepted key matching <code>token.token_type</code> and <code>token.token_key_id</code>, and
+that key's <code>TokenChallenge</code>, including
 <code>Token.challenge_digest</code>. It rejects the presentation if verification
-fails.<a href="#section-5.3.2-8.2.1" class="pilcrow">¶</a></p>
+fails.<a href="#section-5.3.2-9.2.1" class="pilcrow">¶</a></p>
 </li>
-            <li id="section-5.3.2-8.3">
-              <p id="section-5.3.2-8.3.1">It decides under its policy whether to issue an update and, if so, runs
-the issuance of the configured issuance token type on <code>token_request</code>.<a href="#section-5.3.2-8.3.1" class="pilcrow">¶</a></p>
+            <li id="section-5.3.2-9.3">
+              <p id="section-5.3.2-9.3.1">It decides under its policy whether to issue an update and, if so, runs
+the issuance of the configured issuance token type on <code>token_request</code>.<a href="#section-5.3.2-9.3.1" class="pilcrow">¶</a></p>
 </li>
-            <li id="section-5.3.2-8.4">
-              <p id="section-5.3.2-8.4.1">It atomically records under <code>(token.token_key_id, token.nonce)</code> the
+            <li id="section-5.3.2-9.4">
+              <p id="section-5.3.2-9.4.1">It atomically records under <code>(token.token_key_id, token.nonce)</code> the
 digest of the <code>PresentationAndUpdate</code> octets and the result: the
 <code>Update</code>, or no update. Recording <span class="bcp14">MUST</span> fail if a record exists. If any
 step fails, or it is unknown whether the result was recorded, no update is
-released.<a href="#section-5.3.2-8.4.1" class="pilcrow">¶</a></p>
+released.<a href="#section-5.3.2-9.4.1" class="pilcrow">¶</a></p>
 </li>
-            <li id="section-5.3.2-8.5">
-              <p id="section-5.3.2-8.5.1">It returns the recorded result and attempts the protected operation.<a href="#section-5.3.2-8.5.1" class="pilcrow">¶</a></p>
+            <li id="section-5.3.2-9.5">
+              <p id="section-5.3.2-9.5.1">It returns the recorded result and attempts the protected operation.<a href="#section-5.3.2-9.5.1" class="pilcrow">¶</a></p>
 </li>
           </ol>
-<p id="section-5.3.2-9">A result returned from step 1 authorizes no operation. With no update the
-Client is out of credentials.<a href="#section-5.3.2-9" class="pilcrow">¶</a></p>
+<p id="section-5.3.2-10">A result returned from step 1 authorizes no operation. With no update the
+Client is out of credentials.<a href="#section-5.3.2-10" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="retry-after-a-lost-response">
