@@ -1252,7 +1252,7 @@ header. Grant exchanges with an Anchor are HTTP POST requests defined in
 described in BCP 14 <span>[<a href="#RFC2119" class="cite xref">RFC2119</a>]</span> <span>[<a href="#RFC8174" class="cite xref">RFC8174</a>]</span> when, and only when, they
 appear in all capitals, as shown here.<a href="#section-2-1" class="pilcrow">¶</a></p>
 <p id="section-2-2">Message structures, their encoding, and the abstract operations
-(<code>ProcessPresentation</code>, <code>ACCEPTED</code>, <code>RECOVERED</code>) are those of <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>.
+(<code>ProcessPresentation</code>) are those of <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>.
 Every binary value in a header is the unpadded base64url encoding
 (<span>[<a href="#BASE64" class="cite xref">BASE64</a>]</span>) of the TLS presentation encoding of the named structure.<a href="#section-2-2" class="pilcrow">¶</a></p>
 </section>
@@ -1446,7 +1446,7 @@ A server answering cross-origin requests <span class="bcp14">MUST</span> list <c
       <h2 id="name-configuration">
 <a href="#section-5" class="section-number selfRef">5. </a><a href="#name-configuration" class="section-name selfRef">Configuration</a>
       </h2>
-<p id="section-5-1">The Anchor and Moderator directories are defined in <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>. A Client
+<p id="section-5-1">The Anchor and Moderator configurations are defined in <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>. A Client
 stores each Credential with the Moderator and Redeem &amp; Issue endpoint it
 came from. A Client that keeps a presentation for recovery also keeps the
 HTTP request that carried it.<a href="#section-5-1" class="pilcrow">¶</a></p>
@@ -1529,15 +1529,16 @@ instance to raise a limit. Clients then apply the greasing rules of
 Authorization: Mole presentation="&lt;credential-presentation&gt;"
 </pre><a href="#section-6.3-5" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3-6">The Moderator runs <code>ProcessPresentation</code>. For <code>ACCEPTED</code> it attempts the
-protected operation and returns its status, with:<a href="#section-6.3-6" class="pilcrow">¶</a></p>
+<p id="section-6.3-6">The Moderator runs <code>ProcessPresentation</code>. For an accepted result it attempts
+the protected operation and returns its status, with:<a href="#section-6.3-6" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-6.3-7">
 <pre>
 Mole-Credential: update="&lt;optional-credential-update&gt;"
 </pre><a href="#section-6.3-7" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3-8">For <code>RECOVERED</code> it returns <code>409</code> (<span><a href="https://rfc-editor.org/rfc/rfc9110#section-15.5.10" class="relref">Section 15.5.10</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>) with the same
-header and does not attempt the protected operation.<a href="#section-6.3-8" class="pilcrow">¶</a></p>
+<p id="section-6.3-8">For a result returned again on retry, it returns <code>409</code>
+(<span><a href="https://rfc-editor.org/rfc/rfc9110#section-15.5.10" class="relref">Section 15.5.10</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>) with the same header and does not attempt the
+protected operation.<a href="#section-6.3-8" class="pilcrow">¶</a></p>
 <p id="section-6.3-9">A Client that receives no <code>Mole-Credential</code> after sending a presentation
 keeps its pending state and <span class="bcp14">MAY</span> recover (<a href="#recovery" class="auto internal xref">Section 6.4</a>).<a href="#section-6.3-9" class="pilcrow">¶</a></p>
 <p id="section-6.3-10">Each credential type <span class="bcp14">MUST</span> define the challenge fields that partition cached
@@ -1566,8 +1567,8 @@ Authorization: Mole recovery="&lt;credential-recovery&gt;"
 </div>
 <p id="section-6.4-4">The recovery handle is defined by the credential type in <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>. The
 Moderator treats it as the byte-identical presentation and uses no other
-Client identifier. It answers <code>409</code> with the recorded update for
-<code>RECOVERED</code>, and <code>401</code> otherwise, whether or not a record exists. It <span class="bcp14">MUST NOT</span> perform the protected operation or verify a proof.<a href="#section-6.4-4" class="pilcrow">¶</a></p>
+Client identifier. It answers <code>409</code> with the recorded update if a result is
+still retained, and <code>401</code> otherwise, whether or not a record exists. It <span class="bcp14">MUST NOT</span> perform the protected operation or verify a proof.<a href="#section-6.4-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="status-codes">
@@ -1620,18 +1621,14 @@ Client identifier. It answers <code>409</code> with the recorded update for
 </td>
             </tr>
             <tr>
-              <td class="text-left" rowspan="1" colspan="1">
-                <code>ACCEPTED</code>
-</td>
+              <td class="text-left" rowspan="1" colspan="1">Accepted presentation</td>
               <td class="text-left" rowspan="1" colspan="1">protected operation's status</td>
               <td class="text-left" rowspan="1" colspan="1">
                 <code>update</code>
 </td>
             </tr>
             <tr>
-              <td class="text-left" rowspan="1" colspan="1">
-                <code>RECOVERED</code>
-</td>
+              <td class="text-left" rowspan="1" colspan="1">Result returned again on retry</td>
               <td class="text-left" rowspan="1" colspan="1">
                 <code>409</code>
 </td>

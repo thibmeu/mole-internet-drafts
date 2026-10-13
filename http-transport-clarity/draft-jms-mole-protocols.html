@@ -1756,13 +1756,15 @@ opaque Element[Ne];
             <dd class="break"></dd>
 <dt id="section-4.4.1-2.3">Anchor Public Key</dt>
             <dd style="margin-left: 1.5em" id="section-4.4.1-2.4">
-              <p id="section-4.4.1-2.4.1"><code>pkA</code>, an <code>Element</code>, as generated in <span>[<a href="#IHAT-ROLLATINI" class="cite xref">IHAT-ROLLATINI</a>]</span>, with a stable key ID.<a href="#section-4.4.1-2.4.1" class="pilcrow">¶</a></p>
+              <p id="section-4.4.1-2.4.1"><code>pkA</code>, an <code>Element</code>, as generated in <span>[<a href="#IHAT-ROLLATINI" class="cite xref">IHAT-ROLLATINI</a>]</span>. An Anchor has one
+key per grant endpoint.<a href="#section-4.4.1-2.4.1" class="pilcrow">¶</a></p>
 </dd>
             <dd class="break"></dd>
 <dt id="section-4.4.1-2.5">Issuance Context</dt>
             <dd style="margin-left: 1.5em" id="section-4.4.1-2.6">
-              <p id="section-4.4.1-2.6.1"><code>ctx_iss</code>, the canonical encoding of the issuance epoch. Endorsements are
-valid for that epoch, see <a href="#key-rotation" class="auto internal xref">Section 6</a>.<a href="#section-4.4.1-2.6.1" class="pilcrow">¶</a></p>
+              <p id="section-4.4.1-2.6.1"><code>ctx_iss</code>, the issuance epoch the Anchor currently issues under. It is an
+opaque byte string. Endorsements are valid for that epoch, see
+<a href="#key-rotation" class="auto internal xref">Section 6</a>.<a href="#section-4.4.1-2.6.1" class="pilcrow">¶</a></p>
 </dd>
             <dd class="break"></dd>
 <dt id="section-4.4.1-2.7">Redemption Context</dt>
@@ -1825,14 +1827,16 @@ configuration metadata are outside that claim.<a href="#section-4.4.2-4" class="
 <span>[<a href="#IHAT-ROLLATINI" class="cite xref">IHAT-ROLLATINI</a>]</span>. <code>RedeemRequest</code> derives <code>challenge_digest</code> as in
 <a href="#challenge-binding" class="auto internal xref">Section 4.1</a> and calls
 <code>Redeem(anchor_set, index, endorsement, ctx_iss, ctx_red, challenge_digest)</code>.
-The ordered <code>anchor_set</code> comes from Moderator configuration; <code>index</code> selects
-the Anchor that issued the Endorsement. The Client rejects a set that omits
-its Anchor.<a href="#section-4.4.3-1" class="pilcrow">¶</a></p>
-<p id="section-4.4.3-2"><code>FinalizeRedeem</code> checks that the issuance epoch and Moderator Challenge are
-accepted, decodes the payload, and calls
-<code>VerifyRedemption(anchor_set, redemption, ctx_iss, ctx_red, challenge_digest)</code>.
-It returns <code>{nf}</code>, scoped to <code>ctx_iss</code> in the Moderator's store. Any
-decoding or verification failure returns <code>INVALID</code>.
+The Client uses the Moderator's accepted Anchor set for the <code>ctx_iss</code> its
+Endorsement was issued under (<a href="#key-rotation" class="auto internal xref">Section 6</a>). <code>index</code> is the position of
+the entry whose key equals the issuing <code>pkA</code>. The Client fails if no set has
+that <code>ctx_iss</code> or the set omits its Anchor.<a href="#section-4.4.3-1" class="pilcrow">¶</a></p>
+<p id="section-4.4.3-2">The <code>Redemption</code> does not carry <code>ctx_iss</code>. <code>FinalizeRedeem</code> checks that the
+Moderator Challenge is accepted, decodes the payload, and calls
+<code>VerifyRedemption(anchor_set, redemption, ctx_iss, ctx_red, challenge_digest)</code>
+for each accepted Anchor set until one succeeds. It returns <code>{nf}</code>, scoped to
+the matching <code>ctx_iss</code> in the Moderator's store. Any decoding failure, or
+failure under every set, returns <code>INVALID</code>.
 The common replay protection rules apply before Credential issuance. The
 same <code>nf</code> is exposed on repeated redemptions, including across Moderators;
 the scheme does not enforce global single use.<a href="#section-4.4.3-2" class="pilcrow">¶</a></p>
@@ -2142,32 +2146,24 @@ CreatePresentationAndUpdate(credential, credential_challenge, configuration)
   -&gt; (presentation_state, presentation_and_update) | INVALID
 ProcessPresentation(
     presentation_and_update, credential_challenge, policy, configuration)
-  -&gt; INVALID | ACCEPTED(update?) | RECOVERED(update?)
+  -&gt; INVALID
+   | ACCEPTED_NO_UPDATE
+   | ACCEPTED_WITH_UPDATE(update)
 FinalizeUpdate(presentation_state, update, configuration)
   -&gt; credential | INVALID
 </pre><a href="#section-5.1-2" class="pilcrow">¶</a>
 </div>
 <p id="section-5.1-3"><code>CreateIssuanceRequest</code>, <code>FinalizeIssuance</code>, <code>CreatePresentationAndUpdate</code>, and
 <code>FinalizeUpdate</code> run at the Client. <code>IssueCredential</code> and <code>ProcessPresentation</code>
-run at the Moderator. State values are local and are not sent on the wire.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
-<p id="section-5.1-4"><code>ProcessPresentation</code> returns:<a href="#section-5.1-4" class="pilcrow">¶</a></p>
-<ul class="normal">
-<li class="normal" id="section-5.1-5.1">
-            <p id="section-5.1-5.1.1"><code>INVALID</code>: nothing is recorded.<a href="#section-5.1-5.1.1" class="pilcrow">¶</a></p>
-</li>
-          <li class="normal" id="section-5.1-5.2">
-            <p id="section-5.1-5.2.1"><code>ACCEPTED(update?)</code>: this call recorded the result. It authorizes one
-attempt of the protected operation.<a href="#section-5.1-5.2.1" class="pilcrow">¶</a></p>
-</li>
-          <li class="normal" id="section-5.1-5.3">
-            <p id="section-5.1-5.3.1"><code>RECOVERED(update?)</code>: a result was already recorded for this
-presentation. It returns that result and authorizes nothing.<a href="#section-5.1-5.3.1" class="pilcrow">¶</a></p>
-</li>
-        </ul>
-<p id="section-5.1-6">An absent <code>update</code> means the Credential was consumed without replacement.
-The Client calls <code>FinalizeUpdate</code> only when <code>update</code> is present. Each
-protocol defines its Context derivation, replay protection, and retry
-behavior.<a href="#section-5.1-6" class="pilcrow">¶</a></p>
+run at the Moderator. State values are local and are not sent on the wire.
+<code>ACCEPTED_NO_UPDATE</code> means that the presentation succeeded but the Credential
+was consumed without replacement. <code>ACCEPTED_WITH_UPDATE</code> carries the encoded
+<code>Update</code> that the Client finalizes into its replacement Credential by calling
+<code>FinalizeUpdate</code>. The Client does not call <code>FinalizeUpdate</code> for
+<code>ACCEPTED_NO_UPDATE</code>. A complete protocol specification defines its Context
+derivation, replay protection, and retry behavior. The Moderator completes that
+replay protection before returning an accepted result. A result returned
+again for a retry authorizes no further operation.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="credential-act">
@@ -2269,15 +2265,19 @@ the Moderator's assessment of the request, subject to <a href="#privacy-act" cla
 <code>pkM</code>, <code>credential_context</code>, <code>L</code>, and Moderator identity and endpoint stored
 with the spent Credential, and the <code>PresentationAndUpdate</code> octets with the
 HTTP request information needed to resend them to their original
-destination (<a href="#act-missing-refund" class="auto internal xref">Section 5.2.5</a>). The <code>update</code> of <code>ProcessPresentation</code>
-is the refund, or absent when the Moderator declines to refund. A retry
-answered from a record returns <code>RECOVERED</code> (<a href="#act-missing-refund" class="auto internal xref">Section 5.2.5</a>).<a href="#section-5.2-7" class="pilcrow">¶</a></p>
+destination (<a href="#act-missing-refund" class="auto internal xref">Section 5.2.5</a>). <code>ProcessPresentation</code> returns
+<code>ACCEPTED_WITH_UPDATE</code> with a refund, and <code>ACCEPTED_NO_UPDATE</code> when the
+Moderator declines to refund. For a retry answered from a record
+(<a href="#act-missing-refund" class="auto internal xref">Section 5.2.5</a>), it returns the recorded result, which carries the
+Update only and does not authorize the protected operation.
+The ACT response rules in <span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span> define the HTTP status and
+<code>Mole-Credential</code> header for each outcome.<a href="#section-5.2-7" class="pilcrow">¶</a></p>
 <div id="act-configuration">
 <section id="section-5.2.1">
           <h4 id="name-configuration-3">
 <a href="#section-5.2.1" class="section-number selfRef">5.2.1. </a><a href="#name-configuration-3" class="section-name selfRef">Configuration</a>
           </h4>
-<p id="section-5.2.1-1">The Moderator publishes, in its directory (<a href="#key-rotation" class="auto internal xref">Section 6</a>):<a href="#section-5.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.2.1-1">The Moderator publishes, in its configuration (<a href="#key-rotation" class="auto internal xref">Section 6</a>):<a href="#section-5.2.1-1" class="pilcrow">¶</a></p>
 <span class="break"></span><dl class="dlParallel" id="section-5.2.1-2">
             <dt id="section-5.2.1-2.1">Public Key</dt>
             <dd style="margin-left: 1.5em" id="section-5.2.1-2.2">
@@ -2352,16 +2352,16 @@ struct {
 <p id="section-5.2.2-3">The Client runs <code>IssueRequest()</code>, keeps the returned state, and sends the
 request with the truncated identifier of the key and the
 <code>credential_context</code> it holds in its configuration.<a href="#section-5.2.2-3" class="pilcrow">¶</a></p>
-<p id="section-5.2.2-4">The Moderator processes a <code>CredentialRequest</code> as follows. Steps 1 to 3 can
-run in any order.<a href="#section-5.2.2-4" class="pilcrow">¶</a></p>
+<p id="section-5.2.2-4">The Moderator processes a <code>CredentialRequest</code> in this order:<a href="#section-5.2.2-4" class="pilcrow">¶</a></p>
 <ol start="1" type="1" class="normal type-1" id="section-5.2.2-5">
 <li id="section-5.2.2-5.1">
               <p id="section-5.2.2-5.1.1">It selects the active key whose <code>truncated_key_id</code> matches, and checks
-that <code>credential_context</code> is the context it issues under for that key.<a href="#section-5.2.2-5.1.1" class="pilcrow">¶</a></p>
+that <code>credential_context</code> is the context it issues under for that key.
+It rejects the request if either check fails.<a href="#section-5.2.2-5.1.1" class="pilcrow">¶</a></p>
 </li>
             <li id="section-5.2.2-5.2">
               <p id="section-5.2.2-5.2.1">It checks that <code>request</code> deserializes and that its proof verifies, as
-<code>IssueResponse</code> does.<a href="#section-5.2.2-5.2.1" class="pilcrow">¶</a></p>
+<code>IssueResponse</code> does, and rejects the request otherwise.<a href="#section-5.2.2-5.2.1" class="pilcrow">¶</a></p>
 </li>
             <li id="section-5.2.2-5.3">
               <p id="section-5.2.2-5.3.1">It validates the accompanying redemption with <code>FinalizeRedeem</code>
@@ -2369,20 +2369,19 @@ that <code>credential_context</code> is the context it issues under for that key
 </li>
             <li id="section-5.2.2-5.4">
               <p id="section-5.2.2-5.4.1">It chooses the initial balance <code>c</code> under its policy and runs
-<code>IssueResponse(skM, ctx_cred, c, request)</code>.<a href="#section-5.2.2-5.4.1" class="pilcrow">¶</a></p>
+<code>IssueResponse(skM, ctx_cred, c, request)</code>. It then records the
+<code>replay_protection_ids</code> returned by <code>FinalizeRedeem</code>. Recording is atomic
+and fails if any identifier is already recorded. If any step fails, or
+it is unknown whether the identifiers were recorded, no response is
+released.<a href="#section-5.2.2-5.4.1" class="pilcrow">¶</a></p>
 </li>
             <li id="section-5.2.2-5.5">
-              <p id="section-5.2.2-5.5.1">It atomically records the <code>replay_protection_ids</code> returned by
-<code>FinalizeRedeem</code>, failing if any is already recorded.<a href="#section-5.2.2-5.5.1" class="pilcrow">¶</a></p>
-</li>
-            <li id="section-5.2.2-5.6">
-              <p id="section-5.2.2-5.6.1">It returns the result in a <code>CredentialResponse</code>.<a href="#section-5.2.2-5.6.1" class="pilcrow">¶</a></p>
+              <p id="section-5.2.2-5.5.1">It returns the result in a <code>CredentialResponse</code>.<a href="#section-5.2.2-5.5.1" class="pilcrow">¶</a></p>
 </li>
           </ol>
-<p id="section-5.2.2-6">If any step fails, or it is unknown whether step 5 succeeded, the Moderator
-releases no response. A request rejected before step 5 does not consume the
-Endorsement. A response lost after step 5 is not recoverable: the
-Endorsement is consumed, and the Client needs a new one.<a href="#section-5.2.2-6" class="pilcrow">¶</a></p>
+<p id="section-5.2.2-6">A request rejected before recording does not cost the Client its
+Endorsement. A response lost after recording cannot be recovered, and the
+Client needs a new Endorsement.<a href="#section-5.2.2-6" class="pilcrow">¶</a></p>
 <p id="section-5.2.2-7">The Client runs <code>FinalizeIssue(pkM, ctx_cred, state, response)</code> and stores
 the resulting Credential with <code>pkM</code>, <code>credential_context</code>, <code>L</code>, the
 identity of the Moderator, and its configured Redeem &amp; Issue endpoint.
@@ -2416,7 +2415,7 @@ wants to lower balances challenges with <code>s &gt; 0</code> and returns <code>
 wants to raise them offers <code>a &gt; 0</code>. <code>credential_context</code> repeats the
 configured value, so that a Client can tell that its Credential has expired
 without refetching the configuration. It is the challenge field that
-partitions cached Credentials.<a href="#section-5.2.3-3" class="pilcrow">¶</a></p>
+partitions cached Credentials (<span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span>).<a href="#section-5.2.3-3" class="pilcrow">¶</a></p>
 <div id="act-challenge-binding">
 <section id="section-5.2.3.1">
             <h5 id="name-challenge-binding">
@@ -2429,9 +2428,10 @@ ctx_spend = SHA-256(credential_challenge)
 </pre><a href="#section-5.2.3.1-2" class="pilcrow">¶</a>
 </div>
 <p id="section-5.2.3.1-3">where <code>credential_challenge</code> is the complete TLS encoding of the
-<code>CredentialChallenge</code> (<a href="#common" class="auto internal xref">Section 3</a>), including its <code>credential_type</code> and the
-length-prefixed ACT <code>Challenge</code>, not a textual encoding of it. This digest
-is separate from the redemption digest of <a href="#challenge-binding" class="auto internal xref">Section 4.1</a>.<a href="#section-5.2.3.1-3" class="pilcrow">¶</a></p>
+<code>CredentialChallenge</code> (<a href="#common" class="auto internal xref">Section 3</a>), including its <code>credential_type</code>
+and the length-prefixed ACT <code>Challenge</code>. The Client hashes those octets, not
+their base64url encoding. This digest is separate from the redemption digest
+of <a href="#challenge-binding" class="auto internal xref">Section 4.1</a>.<a href="#section-5.2.3.1-3" class="pilcrow">¶</a></p>
 <p id="section-5.2.3.1-4">The presentation does not carry the challenge. The Moderator determines the
 challenge a presentation answers from its policy and the request it is
 authorizing, and selects one of two profiles by what it puts in
@@ -2502,12 +2502,12 @@ result, and step 4 follows.<a href="#section-5.2.3.2-5" class="pilcrow">¶</a></
 <li id="section-5.2.3.2-6.1">
                 <p id="section-5.2.3.2-6.1.1">It checks that <code>key_id</code> names an active key, then looks up
 <code>(key_id, spend.k)</code> in the nullifier store. If a record exists, the
-Moderator returns <code>RECOVERED</code> with its update only if the record holds
-the SHA-256 digest of the received <code>PresentationAndUpdate</code> octets, its
-result is still retained, and its credential context is still accepted
-for that key (<a href="#act-missing-refund" class="auto internal xref">Section 5.2.5</a>). The challenge may have expired.
-Otherwise the presentation is rejected. Only an unrecorded nullifier
-proceeds to step 2.<a href="#section-5.2.3.2-6.1.1" class="pilcrow">¶</a></p>
+Moderator answers from it only if it holds the SHA-256 digest of the
+received <code>PresentationAndUpdate</code> octets, its result is still retained,
+and its credential context is still accepted for that key
+(<a href="#act-missing-refund" class="auto internal xref">Section 5.2.5</a>). The challenge may have expired. A record that
+fails any of these checks causes the presentation to be rejected. Only
+an unrecorded nullifier proceeds to step 2.<a href="#section-5.2.3.2-6.1.1" class="pilcrow">¶</a></p>
 </li>
               <li id="section-5.2.3.2-6.2">
                 <p id="section-5.2.3.2-6.2.1">It determines the challenge (<a href="#act-challenge-binding" class="auto internal xref">Section 5.2.3.1</a>), and checks
@@ -2524,14 +2524,17 @@ octets, <code>ctx_cred</code>, and the decision, either <code>Refund(t)</code> w
 the octets of the <code>RefundMessage</code>, or <code>NoUpdate</code>. Recording is atomic and
 <span class="bcp14">MUST</span> fail if a result is already recorded under that nullifier or if the
 key or context is no longer accepted, so of two racing presentations at
-most one is recorded. If recording fails because a result exists, the
-Moderator continues as in step 1. If any step fails, or it is unknown
-whether the result was recorded, no refund is released.<a href="#section-5.2.3.2-6.3.1" class="pilcrow">¶</a></p>
+most one is recorded. If any step fails, or it is unknown whether the
+result was recorded, no refund is released. The Moderator <span class="bcp14">MUST NOT</span>
+attempt the protected operation unless this request's result was
+successfully recorded.<a href="#section-5.2.3.2-6.3.1" class="pilcrow">¶</a></p>
 </li>
               <li id="section-5.2.3.2-6.4">
-                <p id="section-5.2.3.2-6.4.1">It returns <code>ACCEPTED</code> with the recorded update: the refund, or absent for
-<code>NoUpdate</code>. It attempts the protected operation only after this. The
-response carries the update even when the protected operation fails.<a href="#section-5.2.3.2-6.4.1" class="pilcrow">¶</a></p>
+                <p id="section-5.2.3.2-6.4.1">It attempts the protected operation. Its HTTP response carries the
+recorded credential result as an <code>Update</code>: the refund, or, for
+<code>NoUpdate</code>, an absent update, which leaves the Client without a
+replacement. The Moderator <span class="bcp14">MUST</span> include this result even when the
+protected operation fails (<span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span>).<a href="#section-5.2.3.2-6.4.1" class="pilcrow">¶</a></p>
 </li>
             </ol>
 <p id="section-5.2.3.2-7">Spending credits authorizes one attempt of the protected operation. A
@@ -2668,11 +2671,11 @@ Recovery remains available after the presentation's challenge expires:<a href="#
               <p id="section-5.2.5-3.2.1">For a recorded <code>NoUpdate</code>, the Moderator returns an absent update.<a href="#section-5.2.5-3.2.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
-<p id="section-5.2.5-4">The recovery handle is
-<code>key_id || SerializeScalar(spend.k) || SHA-256(PresentationAndUpdate)</code>.
-A Moderator treats it as the byte-identical presentation.<a href="#section-5.2.5-4" class="pilcrow">¶</a></p>
-<p id="section-5.2.5-5">Recovery returns <code>RECOVERED</code>. The Moderator <span class="bcp14">MUST NOT</span> authorize another
-operation for a recorded nullifier, and <span class="bcp14">MUST NOT</span> change a recorded decision.<a href="#section-5.2.5-5" class="pilcrow">¶</a></p>
+<p id="section-5.2.5-4">The recovery handle (<span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span>) is
+<code>key_id || SerializeScalar(spend.k) || SHA-256(PresentationAndUpdate)</code>.<a href="#section-5.2.5-4" class="pilcrow">¶</a></p>
+<p id="section-5.2.5-5">The Moderator <span class="bcp14">MUST NOT</span> authorize another operation for a recorded nullifier,
+and <span class="bcp14">MUST NOT</span> change a recorded decision. It returns the recovered result
+with HTTP status <code>409</code> as specified in <span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span>.<a href="#section-5.2.5-5" class="pilcrow">¶</a></p>
 <p id="section-5.2.5-6">Once recovery ends, a retry is rejected, and the Client <span class="bcp14">MUST</span> discard the
 spend state. To continue, it runs Redeem &amp; Issue. The Moderator <span class="bcp14">MUST</span> retain
 the nullifier after deleting its result for as long as the key and
@@ -2686,8 +2689,8 @@ credential context are accepted (<a href="#key-rotation" class="auto internal xr
           </h4>
 <p id="section-5.2.6-1">A <code>SpendMessage</code> grows linearly in <code>L</code> (<span>[<a href="#ACT" class="cite xref">ACT</a>]</span>). With P-256 and <code>L = 32</code>,
 it is about 4.5 KB when one of <code>s</code> and <code>a</code> is nonzero and 8.7 KB when both
-are, before any transport encoding. Deployments with tight size limits
-should choose <code>L</code> accordingly.<a href="#section-5.2.6-1" class="pilcrow">¶</a></p>
+are, before base64url encoding in the <code>Authorization</code> header. Deployments
+with tight header limits should choose <code>L</code> accordingly.<a href="#section-5.2.6-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -2699,13 +2702,12 @@ should choose <code>L</code> accordingly.<a href="#section-5.2.6-1" class="pilcr
         </h3>
 <p id="section-5.3-1">Credential type: 0x0002.<a href="#section-5.3-1" class="pilcrow">¶</a></p>
 <p id="section-5.3-2">The Credential is a single Privacy Pass token. The Moderator's configuration
-names both the registered token type used for presentation and the registered
-token type used for update issuance. Presentation consumes the token. The
-update, if granted, is a fresh token issued through <span>[<a href="#REVERSE-FLOW" class="cite xref">REVERSE-FLOW</a>]</span>, with
-redemption in place of attestation.<a href="#section-5.3-2" class="pilcrow">¶</a></p>
-<p id="section-5.3-3">For the protocol described here, the presented and reissued token use the same
-token type and Moderator key. Changing either partitions Clients and leaks
-state.<a href="#section-5.3-3" class="pilcrow">¶</a></p>
+names one issuance token type and key, used by Redeem &amp; Issue and by updates,
+and the token types and keys it accepts for presentation. The accepted set
+includes the issuance one, and can include others, for instance a key being
+rotated out. Presentation consumes the token. The update, if granted, is a
+fresh token issued through <span>[<a href="#REVERSE-FLOW" class="cite xref">REVERSE-FLOW</a>]</span>, with redemption in place of
+attestation.<a href="#section-5.3-2" class="pilcrow">¶</a></p>
 <div id="redeem-issue">
 <section id="section-5.3.1">
           <h4 id="name-redeem-issue-2">
@@ -2750,28 +2752,47 @@ struct {
 <p id="section-5.3.2-4">These structures implement <code>CreatePresentationAndUpdate</code>, <code>ProcessPresentation</code>,
 and <code>FinalizeUpdate</code>.<a href="#section-5.3.2-4" class="pilcrow">¶</a></p>
 <p id="section-5.3.2-5">The <code>token</code> field carries a <code>Token</code> as defined in <span>[<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span>.
-Privacy Pass names its cryptographic Context <code>TokenChallenge</code>. In MoLE, the
-type-specific body of <code>CredentialChallenge</code> carries that configured
-<code>TokenChallenge</code>. It is therefore both sent by the Moderator as part of a
-Challenge and supplied to the Privacy Pass replacement-issuance and
-verification operations as their Context. Initial issuance obtains the same
-<code>TokenChallenge</code> from authenticated configuration.<a href="#section-5.3.2-5" class="pilcrow">¶</a></p>
-<p id="section-5.3.2-6"><code>TokenChallenge</code> is fixed when the token is issued. It <span class="bcp14">MUST</span> be stable for every
-Client using the same configured credential type, key, and epoch, and <span class="bcp14">MUST NOT</span>
-contain a per-Client or per-request value. This is necessary because a
-replacement token is issued before the operation in which it will be
-presented.
-The Privacy Pass <code>Token.challenge_digest</code> field <span class="bcp14">MUST</span> equal SHA-256 over the
-encoded configured <code>TokenChallenge</code>. It is distinct from the MoLE endorsement
-<code>challenge_digest</code> defined in <a href="#challenge-binding" class="auto internal xref">Section 4.1</a>. The Moderator <span class="bcp14">MUST</span> reject
-a token carrying any other digest. Replay protection comes from token single use.
-The Moderator <span class="bcp14">MUST</span> verify the token as specified by <span>[<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span>
-against the configured token type, key, and <code>TokenChallenge</code>, then atomically
-record its nonce before accepting it. An invalid or previously recorded nonce
-is rejected, except for the retry behavior below. Holder binding remains an
-open limitation below.<a href="#section-5.3.2-6" class="pilcrow">¶</a></p>
-<p id="section-5.3.2-7">If the Moderator's policy allows continued access, it returns an <code>Update</code>. If
-not, it returns no update and the Client is out of credentials.<a href="#section-5.3.2-7" class="pilcrow">¶</a></p>
+The type-specific body of <code>CredentialChallenge</code> is the configured
+<code>TokenChallenge</code>, which is also the Context for issuance and verification.
+Initial issuance takes it from configuration. A Client <span class="bcp14">MUST</span> reject a
+<code>CredentialChallenge</code> whose <code>TokenChallenge</code> differs from the configured one.<a href="#section-5.3.2-5" class="pilcrow">¶</a></p>
+<p id="section-5.3.2-6"><code>TokenChallenge</code> is fixed when the token is issued, before the operation in
+which it is presented. It <span class="bcp14">MUST</span> be the same for every Client using a given
+configuration, and <span class="bcp14">MUST NOT</span> contain a per-Client or per-request value.
+<code>Token.challenge_digest</code> is SHA-256 over the encoded <code>TokenChallenge</code>. It is
+distinct from the endorsement <code>challenge_digest</code> of <a href="#challenge-binding" class="auto internal xref">Section 4.1</a>.<a href="#section-5.3.2-6" class="pilcrow">¶</a></p>
+<p id="section-5.3.2-7">The Moderator processes a presentation as follows:<a href="#section-5.3.2-7" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3.2-8">
+<li id="section-5.3.2-8.1">
+              <p id="section-5.3.2-8.1.1">It looks up <code>(token.token_key_id, token.nonce)</code> in its record store. If a
+record exists, it returns the recorded result only if the record holds
+the SHA-256 digest of the received <code>PresentationAndUpdate</code> octets and is
+still retained. Otherwise it rejects the presentation. Only an unrecorded
+nonce proceeds to step 2.<a href="#section-5.3.2-8.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-5.3.2-8.2">
+              <p id="section-5.3.2-8.2.1">It verifies the token as specified by <span>[<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span> against the
+accepted presentation token type, key, and <code>TokenChallenge</code>, including
+<code>Token.challenge_digest</code>. It rejects the presentation if verification
+fails.<a href="#section-5.3.2-8.2.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-5.3.2-8.3">
+              <p id="section-5.3.2-8.3.1">It decides under its policy whether to issue an update and, if so, runs
+the issuance of the configured issuance token type on <code>token_request</code>.<a href="#section-5.3.2-8.3.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-5.3.2-8.4">
+              <p id="section-5.3.2-8.4.1">It atomically records under <code>(token.token_key_id, token.nonce)</code> the
+digest of the <code>PresentationAndUpdate</code> octets and the result: the
+<code>Update</code>, or no update. Recording <span class="bcp14">MUST</span> fail if a record exists. If any
+step fails, or it is unknown whether the result was recorded, no update is
+released.<a href="#section-5.3.2-8.4.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-5.3.2-8.5">
+              <p id="section-5.3.2-8.5.1">It returns the recorded result and attempts the protected operation.<a href="#section-5.3.2-8.5.1" class="pilcrow">¶</a></p>
+</li>
+          </ol>
+<p id="section-5.3.2-9">A result returned from step 1 authorizes no operation. With no update the
+Client is out of credentials.<a href="#section-5.3.2-9" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="retry-after-a-lost-response">
@@ -2780,14 +2801,13 @@ not, it returns no update and the Client is out of credentials.<a href="#section
 <a href="#section-5.3.3" class="section-number selfRef">5.3.3. </a><a href="#name-retry-after-a-lost-response" class="section-name selfRef">Retry after a lost response</a>
           </h4>
 <p id="section-5.3.3-1">A Client that receives no response <span class="bcp14">MAY</span> retry the byte-identical
-<code>PresentationAndUpdate</code> only to recover from that loss. The Moderator <span class="bcp14">MUST</span>
-return <code>RECOVERED</code> with the same result while it retains the idempotency
-record, including the same <code>Update</code> or the same absence of an update. It
-<span class="bcp14">MUST</span> reject the
-replay after that record expires and <span class="bcp14">MUST NOT</span> issue a second Credential. The
+<code>PresentationAndUpdate</code> only to recover from that loss. The Moderator
+retains each result for the <code>result-retention</code> period in its configuration,
+then keeps the nonce without the result while the token key is
+accepted. It <span class="bcp14">MUST NOT</span> issue a second Credential for a recorded nonce. The
 Client <span class="bcp14">MUST NOT</span> combine the same presented Credential with a different update
 request. These requirements are the retry semantics of <span>[<a href="#REVERSE-FLOW" class="cite xref">REVERSE-FLOW</a>]</span>.<a href="#section-5.3.3-1" class="pilcrow">¶</a></p>
-<p id="section-5.3.3-2">The recovery handle is
+<p id="section-5.3.3-2">The recovery handle (<span>[<a href="#HTTP-TRANSPORT" class="cite xref">HTTP-TRANSPORT</a>]</span>) is
 <code>token.token_key_id || token.nonce || SHA-256(PresentationAndUpdate)</code>.<a href="#section-5.3.3-2" class="pilcrow">¶</a></p>
 </section>
 </div>
@@ -2810,27 +2830,37 @@ the binding between update and presented credential. Open problem.<a href="#sect
       <h2 id="name-key-rotation-and-discovery">
 <a href="#section-6" class="section-number selfRef">6. </a><a href="#name-key-rotation-and-discovery" class="section-name selfRef">Key Rotation and Discovery</a>
       </h2>
-<p id="section-6-1">Each Anchor and Moderator publishes a directory, which a Client fetches over
-an authenticated channel. Directories are described in CDDL <span>[<a href="#CDDL" class="cite xref">CDDL</a>]</span>:<a href="#section-6-1" class="pilcrow">¶</a></p>
+<p id="section-6-1">Each Anchor and Moderator publishes a configuration, which a Client fetches
+over an authenticated channel. Configurations are described in CDDL
+<span>[<a href="#CDDL" class="cite xref">CDDL</a>]</span>:<a href="#section-6-1" class="pilcrow">¶</a></p>
 <div class="lang-cddl sourcecode" id="section-6-2">
 <pre>
-anchor-directory = {
-  "grant-uri": tstr,
-  "anchor-keys": [+ $anchor-key],
-  * tstr =&gt; any
-}
-
-moderator-directory = {
+moderator-configuration = {
   "issuance-uri": tstr,
+  "endorsements": [+ $endorsement],
   "credential-keys": [+ $credential-key],
-  "anchor-set": [* $anchor-key],
   * tstr =&gt; any
 }
 
-$anchor-key /= {
+$anchor-configuration /= {
+  "grant-uri": tstr,
   "endorsement-type": 2,            ; Rollatini
+  "ciphersuite": tstr,
   "anchor-key": bstr,               ; SerializeElement(pkA)
   "issuance-epoch": bstr,           ; ctx_iss
+  * tstr =&gt; any
+}
+
+$endorsement /= {
+  "endorsement-type": 1,            ; No Endorsement Required
+  * tstr =&gt; any
+}
+
+$endorsement /= {
+  "endorsement-type": 2,            ; Rollatini
+  "ciphersuite": tstr,
+  "issuance-epoch": bstr,           ; ctx_iss
+  "anchor-set": [+ bstr],           ; SerializeElement(pkA), in order
   * tstr =&gt; any
 }
 
@@ -2843,21 +2873,32 @@ $credential-key /= {
   "result-retention": uint,         ; seconds
   * tstr =&gt; any
 }
+
+$credential-key /= {
+  "credential-type": 2,             ; Privacy Pass Reverse Flow
+  "token-type": uint .size 2,
+  "token-key": bstr,
+  "token-challenge": bstr,          ; encoded TokenChallenge
+  "issuance": bool,                 ; the issuance key, exactly one
+  "result-retention": uint,         ; seconds
+  * tstr =&gt; any
+}
 </pre><a href="#section-6-2" class="pilcrow">¶</a>
 </div>
-<p id="section-6-3"><code>grant-uri</code> and <code>issuance-uri</code> are absolute HTTPS URIs. Other protocols add
-entries to the <code>$anchor-key</code> and <code>$credential-key</code> sockets. A Client ignores
-unknown members and skips entries of unknown types.<a href="#section-6-3" class="pilcrow">¶</a></p>
-<p id="section-6-4">The Anchor set of an endorsement type is the <code>anchor-set</code> entries of that
-type, in order: Rollatini proof branches and Longfellow issuer inputs match
-Anchors by position. A Moderator with no entries accepts only endorsement
-type 0x0001.<a href="#section-6-4" class="pilcrow">¶</a></p>
+<p id="section-6-3"><code>grant-uri</code> and <code>issuance-uri</code> are absolute HTTPS URIs. Other protocols,
+such as <a href="#longfellow" class="auto internal xref">Section 4.5</a>, add entries to the sockets. A Client ignores unknown
+members and skips entries of unknown types.<a href="#section-6-3" class="pilcrow">¶</a></p>
+<p id="section-6-4"><code>endorsements</code> lists the endorsement types the Moderator accepts. A
+Rollatini entry is one accepted Anchor set, with the <code>ctx_iss</code> shared by all
+its Anchors. A Moderator accepting several epochs publishes one entry per
+epoch. Order within <code>anchor-set</code> matters: Rollatini proof branches match
+Anchors by position.<a href="#section-6-4" class="pilcrow">¶</a></p>
 <p id="section-6-5">ACT nullifiers <span class="bcp14">MUST</span> remain recorded while their credential context is
-accepted for their key. A Moderator that publishes different directories to
-different Clients partitions them (<span>[<a href="#ARCHITECTURE" class="cite xref">ARCHITECTURE</a>]</span>).<a href="#section-6-5" class="pilcrow">¶</a></p>
+accepted for their key. A Moderator that publishes different configurations
+to different Clients partitions them (<span>[<a href="#ARCHITECTURE" class="cite xref">ARCHITECTURE</a>]</span>).<a href="#section-6-5" class="pilcrow">¶</a></p>
 <p id="section-6-6">The serialization, for instance JSON or CBOR, is to be defined with the
-directory's authentication and consistency checks. In JSON, <code>bstr</code> values
-are unpadded base64url strings.<a href="#section-6-6" class="pilcrow">¶</a></p>
+configuration's authentication and consistency checks. In JSON, <code>bstr</code>
+values are unpadded base64url strings.<a href="#section-6-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="privacy-considerations">
