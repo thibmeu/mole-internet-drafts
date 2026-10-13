@@ -787,7 +787,7 @@ FinalizeUpdate(presentation_state, update, configuration)
 
 5.2.1.  Configuration
 
-   The Moderator publishes, in its configuration (Section 6):
+   The Moderator publishes, in its directory (Section 6):
 
    Public Key  pkM, encoded with SerializeElement.  Its identifier is
       key_id = SHA-256(SerializeElement(pkM)), and truncated_key_id is
@@ -1194,36 +1194,56 @@ FinalizeUpdate(presentation_state, update, configuration)
 
 6.  Key Rotation and Discovery
 
-   Each Anchor and Moderator publishes a directory.  A Client fetches it
-   over an authenticated channel and skips entries of unknown types.
+   Each Anchor and Moderator publishes a directory, which a Client
+   fetches over an authenticated channel.  Directories are described in
+   CDDL [CDDL]:
 
-   An Anchor directory contains:
+   anchor-directory = {
+     "grant-uri": tstr,
+     "anchor-keys": [+ $anchor-key],
+     * tstr => any
+   }
 
-   *  the grant endpoint;
+   moderator-directory = {
+     "issuance-uri": tstr,
+     "credential-keys": [+ $credential-key],
+     "anchor-set": [* $anchor-key],
+     * tstr => any
+   }
 
-   *  per key: the endorsement type, the public key, and the issuance
-      epoch ctx_iss.
+   $anchor-key /= {
+     "endorsement-type": 2,            ; Rollatini
+     "anchor-key": bstr,               ; SerializeElement(pkA)
+     "issuance-epoch": bstr,           ; ctx_iss
+     * tstr => any
+   }
 
-   A Moderator directory contains:
+   $credential-key /= {
+     "credential-type": 1,             ; ACT
+     "credential-key": bstr,           ; SerializeElement(pkM)
+     "ciphersuite": tstr,
+     "balance-width": 1..64,           ; L
+     "credential-context": bstr .size (0..65534),
+     "result-retention": uint,         ; seconds
+     * tstr => any
+   }
 
-   *  the Redeem & Issue endpoint;
+   grant-uri and issuance-uri are absolute HTTPS URIs.  Other protocols
+   add entries to the $anchor-key and $credential-key sockets.  A Client
+   ignores unknown members and skips entries of unknown types.
 
-   *  per credential key: the credential type and its configuration, for
-      ACT that of Section 5.2.1;
+   The Anchor set of an endorsement type is the anchor-set entries of
+   that type, in order: Rollatini proof branches and Longfellow issuer
+   inputs match Anchors by position.  A Moderator with no entries
+   accepts only endorsement type 0x0001.
 
-   *  the ordered accepted Anchor set: per Anchor, the endorsement type,
-      the public key, and the issuance epoch;
+   ACT nullifiers MUST remain recorded while their credential context is
+   accepted for their key.  A Moderator that publishes different
+   directories to different Clients partitions them ([ARCHITECTURE]).
 
-   *  any other endorsement inputs, such as those of Section 4.5.
-
-   Order matters: Rollatini proof branches and Longfellow issuer inputs
-   match Anchors by position.  ACT nullifiers MUST remain recorded while
-   their credential context is accepted for their key.  A Moderator that
-   publishes different directories to different Clients partitions them
-   ([ARCHITECTURE]).
-
-      *Editor note.* The directory serialization, discovery, and
-      freshness remain to be defined.
+   The serialization, for instance JSON or CBOR, is to be defined with
+   the directory's authentication and consistency checks.  In JSON, bstr
+   values are unpadded base64url strings.
 
 7.  Privacy Considerations
 
@@ -1549,6 +1569,12 @@ FinalizeUpdate(presentation_state, update, configuration)
               Progress, Internet-Draft, draft-jms-mole-architecture-00,
               6 July 2026, <https://datatracker.ietf.org/doc/html/draft-
               jms-mole-architecture-00>.
+
+   [CDDL]     Birkholz, H., Vigano, C., and C. Bormann, "Concise Data
+              Definition Language (CDDL): A Notational Convention to
+              Express Concise Binary Object Representation (CBOR) and
+              JSON Data Structures", RFC 8610, DOI 10.17487/RFC8610,
+              June 2019, <https://www.rfc-editor.org/rfc/rfc8610>.
 
    [HTTP-TRANSPORT]
               Schlesinger, S., Jackson, D., and T. Meunier, "MoLE HTTP

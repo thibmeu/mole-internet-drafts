@@ -2277,7 +2277,7 @@ answered from a record returns <code>RECOVERED</code> (<a href="#act-missing-ref
           <h4 id="name-configuration-3">
 <a href="#section-5.2.1" class="section-number selfRef">5.2.1. </a><a href="#name-configuration-3" class="section-name selfRef">Configuration</a>
           </h4>
-<p id="section-5.2.1-1">The Moderator publishes, in its configuration (<a href="#key-rotation" class="auto internal xref">Section 6</a>):<a href="#section-5.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.2.1-1">The Moderator publishes, in its directory (<a href="#key-rotation" class="auto internal xref">Section 6</a>):<a href="#section-5.2.1-1" class="pilcrow">¶</a></p>
 <span class="break"></span><dl class="dlParallel" id="section-5.2.1-2">
             <dt id="section-5.2.1-2.1">Public Key</dt>
             <dd style="margin-left: 1.5em" id="section-5.2.1-2.2">
@@ -2810,46 +2810,54 @@ the binding between update and presented credential. Open problem.<a href="#sect
       <h2 id="name-key-rotation-and-discovery">
 <a href="#section-6" class="section-number selfRef">6. </a><a href="#name-key-rotation-and-discovery" class="section-name selfRef">Key Rotation and Discovery</a>
       </h2>
-<p id="section-6-1">Each Anchor and Moderator publishes a directory. A Client fetches it over an
-authenticated channel and skips entries of unknown types.<a href="#section-6-1" class="pilcrow">¶</a></p>
-<p id="section-6-2">An Anchor directory contains:<a href="#section-6-2" class="pilcrow">¶</a></p>
-<ul class="normal">
-<li class="normal" id="section-6-3.1">
-          <p id="section-6-3.1.1">the grant endpoint;<a href="#section-6-3.1.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-6-3.2">
-          <p id="section-6-3.2.1">per key: the endorsement type, the public key, and the issuance epoch
-<code>ctx_iss</code>.<a href="#section-6-3.2.1" class="pilcrow">¶</a></p>
-</li>
-      </ul>
-<p id="section-6-4">A Moderator directory contains:<a href="#section-6-4" class="pilcrow">¶</a></p>
-<ul class="normal">
-<li class="normal" id="section-6-5.1">
-          <p id="section-6-5.1.1">the Redeem &amp; Issue endpoint;<a href="#section-6-5.1.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-6-5.2">
-          <p id="section-6-5.2.1">per credential key: the credential type and its configuration, for ACT
-that of <a href="#act-configuration" class="auto internal xref">Section 5.2.1</a>;<a href="#section-6-5.2.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-6-5.3">
-          <p id="section-6-5.3.1">the ordered accepted Anchor set: per Anchor, the endorsement type, the
-public key, and the issuance epoch;<a href="#section-6-5.3.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-6-5.4">
-          <p id="section-6-5.4.1">any other endorsement inputs, such as those of <a href="#longfellow" class="auto internal xref">Section 4.5</a>.<a href="#section-6-5.4.1" class="pilcrow">¶</a></p>
-</li>
-      </ul>
-<p id="section-6-6">Order matters: Rollatini proof branches and Longfellow issuer inputs match
-Anchors by position. ACT nullifiers <span class="bcp14">MUST</span> remain recorded while their
-credential context is accepted for their key. A Moderator that publishes
-different directories to different Clients partitions them
-(<span>[<a href="#ARCHITECTURE" class="cite xref">ARCHITECTURE</a>]</span>).<a href="#section-6-6" class="pilcrow">¶</a></p>
-<ul class="normal ulEmpty">
-<li class="normal ulEmpty" id="section-6-7.1">
-          <p id="section-6-7.1.1"><strong>Editor note.</strong> The directory serialization, discovery, and freshness
-remain to be defined.<a href="#section-6-7.1.1" class="pilcrow">¶</a></p>
-</li>
-      </ul>
+<p id="section-6-1">Each Anchor and Moderator publishes a directory, which a Client fetches over
+an authenticated channel. Directories are described in CDDL <span>[<a href="#CDDL" class="cite xref">CDDL</a>]</span>:<a href="#section-6-1" class="pilcrow">¶</a></p>
+<div class="lang-cddl sourcecode" id="section-6-2">
+<pre>
+anchor-directory = {
+  "grant-uri": tstr,
+  "anchor-keys": [+ $anchor-key],
+  * tstr =&gt; any
+}
+
+moderator-directory = {
+  "issuance-uri": tstr,
+  "credential-keys": [+ $credential-key],
+  "anchor-set": [* $anchor-key],
+  * tstr =&gt; any
+}
+
+$anchor-key /= {
+  "endorsement-type": 2,            ; Rollatini
+  "anchor-key": bstr,               ; SerializeElement(pkA)
+  "issuance-epoch": bstr,           ; ctx_iss
+  * tstr =&gt; any
+}
+
+$credential-key /= {
+  "credential-type": 1,             ; ACT
+  "credential-key": bstr,           ; SerializeElement(pkM)
+  "ciphersuite": tstr,
+  "balance-width": 1..64,           ; L
+  "credential-context": bstr .size (0..65534),
+  "result-retention": uint,         ; seconds
+  * tstr =&gt; any
+}
+</pre><a href="#section-6-2" class="pilcrow">¶</a>
+</div>
+<p id="section-6-3"><code>grant-uri</code> and <code>issuance-uri</code> are absolute HTTPS URIs. Other protocols add
+entries to the <code>$anchor-key</code> and <code>$credential-key</code> sockets. A Client ignores
+unknown members and skips entries of unknown types.<a href="#section-6-3" class="pilcrow">¶</a></p>
+<p id="section-6-4">The Anchor set of an endorsement type is the <code>anchor-set</code> entries of that
+type, in order: Rollatini proof branches and Longfellow issuer inputs match
+Anchors by position. A Moderator with no entries accepts only endorsement
+type 0x0001.<a href="#section-6-4" class="pilcrow">¶</a></p>
+<p id="section-6-5">ACT nullifiers <span class="bcp14">MUST</span> remain recorded while their credential context is
+accepted for their key. A Moderator that publishes different directories to
+different Clients partitions them (<span>[<a href="#ARCHITECTURE" class="cite xref">ARCHITECTURE</a>]</span>).<a href="#section-6-5" class="pilcrow">¶</a></p>
+<p id="section-6-6">The serialization, for instance JSON or CBOR, is to be defined with the
+directory's authentication and consistency checks. In JSON, <code>bstr</code> values
+are unpadded base64url strings.<a href="#section-6-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="privacy-considerations">
@@ -3397,6 +3405,10 @@ remain to be specified.<a href="#section-9.3-2.1.1" class="pilcrow">¶</a></p>
 <dt id="ARCHITECTURE">[ARCHITECTURE]</dt>
         <dd>
 <span class="refAuthor">Schlesinger, S.</span>, <span class="refAuthor">Jackson, D.</span>, and <span class="refAuthor">T. Meunier</span>, <span class="refTitle">"Moderation of unLinkable Endorsements (MoLE) Architecture"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-jms-mole-architecture-00</span>, <time datetime="2026-07-06" class="refDate">6 July 2026</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-jms-mole-architecture-00">https://datatracker.ietf.org/doc/html/draft-jms-mole-architecture-00</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="CDDL">[CDDL]</dt>
+        <dd>
+<span class="refAuthor">Birkholz, H.</span>, <span class="refAuthor">Vigano, C.</span>, and <span class="refAuthor">C. Bormann</span>, <span class="refTitle">"Concise Data Definition Language (CDDL): A Notational Convention to Express Concise Binary Object Representation (CBOR) and JSON Data Structures"</span>, <span class="seriesInfo">RFC 8610</span>, <span class="seriesInfo">DOI 10.17487/RFC8610</span>, <time datetime="2019-06" class="refDate">June 2019</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8610">https://www.rfc-editor.org/rfc/rfc8610</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="HTTP-TRANSPORT">[HTTP-TRANSPORT]</dt>
         <dd>
