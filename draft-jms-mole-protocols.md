@@ -171,15 +171,16 @@ or response is rejected. A Moderator treats an unknown optional presentation
 as absent and rejects an unknown required presentation. Moderator Challenge
 material is never sent to an Anchor by the Client.
 
-The value 0x0000 is reserved in both registries and MUST NOT appear on the
-wire.
+The value 0x0000 is reserved in the credential type registry, as in the
+Privacy Pass token type registry, and MUST NOT appear on the wire.
 
 > **Editor note.** How issuer-hiding token types extend the Privacy Pass
 > token type registry is TBD. In particular, `TokenChallenge`
 > ({{PRIVACYPASS-AUTH}}) names a single `issuer_name`, and token types fix
 > the size of their fields, while an issuer-hiding redemption names an Anchor
-> set and its size depends on that set. Until then, this document and
-> {{HTTP-TRANSPORT}} use 0x0002 as a placeholder for EC-IHAT.
+> set and its size depends on that set. Until values are assigned, this
+> document and {{HTTP-TRANSPORT}} use 0x0002 for EC-IHAT and 0x0003 for
+> Longfellow as placeholders. They collide with existing assignments.
 
 These canonical Challenge encodings are hash inputs, not HTTP payload
 wrappers. Both parties reconstruct them from the selected type and decoded
@@ -213,6 +214,9 @@ registry space. Moderators MUST handle them exactly as any other unknown type
 and MUST NOT special-case the reserved list. A Moderator that enumerates
 greased values defeats their purpose and will still receive unknown types it
 did not enumerate.
+
+Endorsement types are greased with the reserved values of
+{{Section 6.2.1 of PRIVACYPASS-AUTH}}, under the same rules.
 
 Additionally, when a credential is not required, Clients SHOULD randomly
 choose not to send a presentation with some non-trivial probability. This
@@ -362,7 +366,7 @@ context rotation.
 
 ## EC-IHAT {#ec-ihat}
 
-Endorsement type: 0x0002.
+Privacy Pass token type: TBD (0x0002 in examples).
 
 This protocol uses EC-IHAT {{EC-IHAT}}, a pairing-free Issuer-Hiding
 Anonymous Token (IHAT). The cryptographic operations, primitive types, and
@@ -500,7 +504,7 @@ the scheme does not enforce global single use.
 
 ## Longfellow {#longfellow}
 
-Endorsement type: 0x0003.
+Privacy Pass token type: TBD (0x0003 in examples).
 
 Where EC-IHAT requires Anchors to run new cryptography, this protocol
 preserves backward compatibility with credentials Clients may hold, such as
@@ -629,21 +633,18 @@ runs the endorsement protocol's `FinalizeRedeem` before accepting issuance.
 Presentation carries `PresentationAndUpdate` and returns `Update` or a recorded
 `NoUpdate` decision. {{HTTP-TRANSPORT}} carries these payloads directly.
 
-Both exchanges are reverse flows ({{Section 4 of REVERSE-FLOW}}). The
-`IssuanceRequest` and `PresentationAndUpdate` carry the reverse flow
-`CredentialRequest`, `IssuanceResponse` and `Update` its
-`CredentialResponse`, and `FinalizeIssuance` and `FinalizeUpdate` its
-`CredentialFinalization`. The Moderator is the Origin Issuer. A credential
-protocol adds to {{REVERSE-FLOW}} a presentation and update bound in one
-message, the explicit `NoUpdate` decision, and the retry semantics below.
-
-`CredentialRequest` names the pair of Redeem & Issue payloads: the
-endorsement type and its `Redemption`, and the credential type and its
-`IssuanceRequest`. HTTP carries them as two typed parameters.
-
-`CredentialResponse` below means the selected credential type and its encoded
-`IssuanceResponse`. HTTP carries the type in its response
-parameter suffix. The Client MUST reject a type that differs from its request.
+Both exchanges are reverse flows ({{Section 4 of REVERSE-FLOW}}), with the
+Moderator as Origin Issuer. In Redeem & Issue, the `Redemption` is the
+redeemed token, and `IssuanceRequest` and `IssuanceResponse` are the reverse
+flow `CredentialRequest` and `CredentialResponse`. HTTP carries the
+`Redemption` and `IssuanceRequest` as two typed parameters, and the type of
+`IssuanceResponse` in its response parameter suffix. The Client MUST reject
+a type that differs from its request. In Presentation and Update, the
+presentation and the update request are bound in one `PresentationAndUpdate`,
+and `Update` is the `CredentialResponse`. `FinalizeIssuance` and
+`FinalizeUpdate` are the reverse flow `CredentialFinalization`. A credential
+protocol adds to {{REVERSE-FLOW}} the explicit `NoUpdate` decision and the
+retry semantics below.
 
 All credential protocols define the same four payloads:
 
@@ -829,7 +830,7 @@ The Client runs `IssueRequest()`, keeps the returned state, and sends the
 request with the truncated identifier of the key and the
 `credential_context` it holds in its configuration.
 
-The Moderator processes a `CredentialRequest` in this order:
+The Moderator processes a Redeem & Issue request in this order:
 
 1. It selects the active key whose `truncated_key_id` matches, and checks
    that `credential_context` is the context it issues under for that key.
@@ -844,7 +845,7 @@ The Moderator processes a `CredentialRequest` in this order:
    and fails if any identifier is already recorded. If any step fails, or
    it is unknown whether the identifiers were recorded, no response is
    released.
-5. It returns the result in a `CredentialResponse`.
+5. It returns the `IssuanceResponse`.
 
 A request rejected before recording does not cost the Client its
 Endorsement. A response lost after recording cannot be recovered, and the
@@ -1163,13 +1164,9 @@ The Moderator processes a presentation as follows:
 
 ### Retry after a lost response
 
-A Client that receives no response MAY retry the byte-identical
-`PresentationAndUpdate` only to recover from that loss. The Moderator
-retains each result for the `result-retention` period in its configuration,
-then keeps the nonce without the result while the token key is
-accepted. It MUST NOT issue a second Credential for a recorded nonce. The
-Client MUST NOT combine the same presented Credential with a different update
-request. These requirements are the retry semantics of {{REVERSE-FLOW}}.
+Retries follow {{Section 4.3.1 of REVERSE-FLOW}}. The Moderator retains each
+result for the `result-retention` period in its configuration, then keeps
+the nonce without the result while the token key is accepted.
 
 If concurrent presentations race to record the nonce, only the winner returns
 `fresh` true. A loser returns the retained result with `fresh` false only if
@@ -1376,6 +1373,9 @@ TODO. The list to cover:
 2. Timing and error side channels during verification, especially
    distinguishing "bad proof" from "spent nullifier".
 
+The security considerations of {{Section 7 of REVERSE-FLOW}} apply to
+Redeem & Issue and to Presentation and Update.
+
 Replay protection scope is deployment-selected and can differ for Endorsement
 redemption and Credential presentation. Atomic checks within that scope
 prevent repeated acceptance. Except for EC-ACT's shared-store requirement below,
@@ -1451,63 +1451,62 @@ Verification cost:
 
 # IANA Considerations {#iana}
 
-This document sketches one candidate registry under a future "MOLE"
-group, for the credential protocols of Privacy Pass with a Reverse Flow, and
-candidate endorsement types for the Privacy Pass token type registry
-({{PRIVACYPASS-PROTOCOLS}}). The values below are candidate values for
-discussion in this -00 draft and are not stable assignments.
+This document registers endorsement types in the Privacy Pass Token Types
+registry ({{Section 6.2 of PRIVACYPASS-AUTH}}), and sketches one candidate
+registry for credential types under a future "MOLE" group. The values below
+are candidate values for discussion in this -00 draft and are not stable
+assignments.
 
-New registrations use Specification Required as defined by {{IANA}}. A
-specification MUST define the structures and abstract operations required by
-the relevant common API, including canonical encodings and maximum sizes. An
-endorsement registration MUST provide issuer hiding where applicable, define
-its replay protection behavior, and state how a Challenge affects its cryptographic
-Context. A credential registration MUST define `IssuanceRequest`,
+An endorsement token type follows {{Section 6.2 of PRIVACYPASS-AUTH}}. Its
+specification MUST also define the structures and abstract operations of
+{{endorsement-protocols}}, including canonical encodings and maximum sizes,
+provide issuer hiding where applicable, define its replay protection
+behavior, and state how a Challenge affects its cryptographic Context.
+
+New credential type registrations use Specification Required as defined by
+{{IANA}}. A specification MUST define the structures and abstract operations
+required by {{credential-protocols}}, including canonical encodings and
+maximum sizes. A credential registration MUST define `IssuanceRequest`,
 `IssuanceResponse`, `PresentationAndUpdate`, `Update`, finalization, retry
 behavior, and Challenge-to-Context derivation. Type-specific Update encodings
 MUST be nonempty so HTTP can represent `NoUpdate` as an empty payload.
 
-## MOLE Endorsement Types
+## Privacy Pass Token Types
 
-Endorsement types are Privacy Pass token types. The table below lists
-candidate values. How issuer-hiding token types are registered in the
-Privacy Pass token type registry is TBD ({{common}}).
-
-| Value           | Name                          | Reference      |
-|:----------------|:------------------------------|:---------------|
-| 0x0000          | Reserved                      | this document  |
-| 0x0002          | EC-IHAT                        | {{ec-ihat}}     |
-| 0x0003          | Longfellow                    | {{longfellow}} |
-| 0xFF00 - 0xFFFF | Reserved for testing          | this document  |
-{: #endorsement-types title="Candidate MOLE Endorsement Type Values"}
-
-The registration template contains:
-
-* Value: The two-byte endorsement type.
-* Name: A short name for the protocol.
-* Exchanges: The number of request/response exchanges with the Anchor, or
-  "none" if the grant is out of band.
-* Publicly Verifiable: Whether the Endorsement can be verified without
-  Anchor secret key material.
-* Reference: Where the protocol is defined.
-
-The following initial registrations are candidates only.
+The following registrations are candidates only. Fields left TBD depend on
+how issuer-hiding token types fit {{PRIVACYPASS-AUTH}} ({{common}}).
 
 ### EC-IHAT {#iana-ec-ihat}
 
-* Value: 0x0002
+* Value: TBD
 * Name: EC-IHAT
-* Exchanges: 2
-* Publicly Verifiable: Yes
+* Token Structure: TBD
+* Token Key Encoding: `SerializeElement(pkA)` ({{EC-IHAT}})
+* TokenChallenge Structure: TBD, see {{challenge-binding}}
+* Publicly Verifiable: Y
+* Public Metadata: Y, `ctx_iss`
+* Private Metadata: N
+* Nk: TBD, depends on the Anchor set size
+* Nid: TBD
+* Change Controller: IETF
 * Reference: {{ec-ihat}}
+* Notes: The grant takes two request/response exchanges with the Anchor.
 
 ### Longfellow {#iana-longfellow}
 
-* Value: 0x0003
+* Value: TBD
 * Name: Longfellow
-* Exchanges: none (out of band)
-* Publicly Verifiable: Yes
+* Token Structure: TBD
+* Token Key Encoding: TBD
+* TokenChallenge Structure: TBD, see {{challenge-binding}}
+* Publicly Verifiable: Y
+* Public Metadata: N
+* Private Metadata: N
+* Nk: TBD
+* Nid: TBD
+* Change Controller: IETF
 * Reference: {{longfellow}}
+* Notes: The grant is out of band.
 
 ## MOLE Credential Types
 
@@ -1564,8 +1563,9 @@ random bytes ({{greasing}}).
 | application/mole-endorsement-response | {{endorsement-protocols}} |
 {: #media-types-table title="MOLE Media Types"}
 
-Both media types require a `type` parameter containing the four-digit
-hexadecimal endorsement type defined by {{HTTP-TRANSPORT}}. Bodies are the
+Both media types require a `type` parameter containing the Privacy Pass
+token type of the Endorsement, as four hexadecimal digits
+({{HTTP-TRANSPORT}}). Bodies are the
 type-specific binary grant messages. Duplicate or mismatched type parameters
 are rejected. Neither type has optional parameters defined here.
 

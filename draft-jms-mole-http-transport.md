@@ -41,6 +41,7 @@ normative:
   PROTOCOLS: #I-D.draft-jms-mole-protocols
     title: MOLE Protocols
     target: https://datatracker.ietf.org/doc/draft-jms-mole-protocols/00/
+  PRIVACYPASS-AUTH: RFC9577
   REVERSE-FLOW: I-D.draft-meunier-privacypass-reverse-flow
 
 informative:
@@ -113,9 +114,10 @@ type-specific payloads directly, without outer type or length wrappers.
     |                                           |
 ~~~
 
-Payload parameter names end in `-T`, where `T` is a registered endorsement or
-credential type from {{PROTOCOLS}}, written as exactly four lowercase
-hexadecimal digits. For example, EC-IHAT (endorsement type 0x0002) is
+Payload parameter names end in `-T`, where `T` is a Privacy Pass token type
+({{PRIVACYPASS-AUTH}}) for endorsements or a registered credential type from
+{{PROTOCOLS}}, written as exactly four lowercase hexadecimal digits. For
+example, EC-IHAT (placeholder token type 0x0002) is
 challenged with `redeem-0002`, and EC-ACT (credential type 0x0001) is presented
 with `presentation-0001`. Recipients also accept uppercase digits, since
 parameter names are case-insensitive ({{Section 11.2 of HTTP}}). Type 0x0000
@@ -125,8 +127,8 @@ Each `Mole` challenge has exactly one payload parameter:
 
 | Parameter | Registry | Decoded payload |
 |---|---|---|
-| `endorse-T` | Endorsement | Anchor context, empty for the types here |
-| `redeem-T` | Endorsement | `RedemptionChallenge` |
+| `endorse-T` | Privacy Pass token type | Anchor context, empty for the types here |
+| `redeem-T` | Privacy Pass token type | `RedemptionChallenge` |
 | `challenge-T` | Credential | Type-specific `Challenge` |
 {: title="Challenge parameters"}
 
@@ -144,7 +146,7 @@ A `Mole` credential in `Authorization` selects one operation:
 | `recovery-T` | Recovery handle |
 {: title="Authorization parameters"}
 
-`E` uses the endorsement registry. `C`, presentation, and recovery use the
+`E` is a Privacy Pass token type. `C`, presentation, and recovery use the
 credential registry. Only Redeem & Issue has two payload
 parameters. It requires exactly one of each, in either order.
 
@@ -355,8 +357,8 @@ registry.
 This document registers the `Mole-Credential` field name in the
 "Hypertext Transfer Protocol (HTTP) Field Name Registry".
 
-Endorsement and credential type values are registered in {{PROTOCOLS}}, not
-in this document.
+Endorsement types are Privacy Pass token types. Credential type values are
+registered in {{PROTOCOLS}}, not in this document.
 
 --- back
 
