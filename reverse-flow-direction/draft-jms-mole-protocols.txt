@@ -110,8 +110,6 @@ Table of Contents
      8.1.  EC-ACT
    9.  IANA Considerations
      9.1.  Privacy Pass Token Types
-       9.1.1.  EC-IHAT
-       9.1.2.  Longfellow
      9.2.  MOLE Credential Types
        9.2.1.  EC-ACT
        9.2.2.  Privacy Pass Reverse Flow
@@ -1541,66 +1539,23 @@ FinalizeUpdate(presentation_state, update, configuration)
 
 9.1.  Privacy Pass Token Types
 
-   The following registrations are candidates only.  Fields left TBD
-   depend on how issuer-hiding token types fit [PRIVACYPASS-AUTH]
-   (Section 3).
+   The following are candidates for the Privacy Pass Token Types
+   registry (Section 6.2 of [PRIVACYPASS-AUTH]).  Their values and the
+   fields that depend on how issuer-hiding token types fit
+   [PRIVACYPASS-AUTH] (Section 3) are TBD.
 
-9.1.1.  EC-IHAT
+       +=======+============+============+=============+===========+
+       | Value | Name       | Publicly   | Notes       | Reference |
+       |       |            | Verifiable |             |           |
+       +=======+============+============+=============+===========+
+       | TBD   | EC-IHAT    | Y          | Two grant   | Section   |
+       |       |            |            | exchanges   | 4.3       |
+       +-------+------------+------------+-------------+-----------+
+       | TBD   | Longfellow | Y          | Grant is    | Section   |
+       |       |            |            | out of band | 4.4       |
+       +-------+------------+------------+-------------+-----------+
 
-   *  Value: TBD
-
-   *  Name: EC-IHAT
-
-   *  Token Structure: TBD
-
-   *  Token Key Encoding: SerializeElement(pkA) ([EC-IHAT])
-
-   *  TokenChallenge Structure: TBD, see Section 4.1
-
-   *  Publicly Verifiable: Y
-
-   *  Public Metadata: Y, ctx_iss
-
-   *  Private Metadata: N
-
-   *  Nk: TBD, depends on the Anchor set size
-
-   *  Nid: TBD
-
-   *  Change Controller: IETF
-
-   *  Reference: Section 4.3
-
-   *  Notes: The grant takes two request/response exchanges with the
-      Anchor.
-
-9.1.2.  Longfellow
-
-   *  Value: TBD
-
-   *  Name: Longfellow
-
-   *  Token Structure: TBD
-
-   *  Token Key Encoding: TBD
-
-   *  TokenChallenge Structure: TBD, see Section 4.1
-
-   *  Publicly Verifiable: Y
-
-   *  Public Metadata: N
-
-   *  Private Metadata: N
-
-   *  Nk: TBD
-
-   *  Nid: TBD
-
-   *  Change Controller: IETF
-
-   *  Reference: Section 4.4
-
-   *  Notes: The grant is out of band.
+                Table 3: Candidate Privacy Pass Token Types
 
 9.2.  MOLE Credential Types
 
@@ -1622,7 +1577,7 @@ FinalizeUpdate(presentation_state, update, configuration)
       | 0xFF00 - 0xFFFF | Reserved for testing      | this document |
       +-----------------+---------------------------+---------------+
 
-               Table 3: Candidate MOLE Credential Type Values
+               Table 4: Candidate MOLE Credential Type Values
 
    The registration template contains:
 

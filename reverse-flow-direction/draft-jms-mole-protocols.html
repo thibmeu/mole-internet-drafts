@@ -1295,14 +1295,6 @@ the credential protocols.<a href="#section-abstract-1" class="pilcrow">¶</a></p
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1">
                 <p id="section-toc.1-1.9.2.1.1"><a href="#section-9.1" class="auto internal xref">9.1</a>.  <a href="#name-privacy-pass-token-types" class="internal xref">Privacy Pass Token Types</a></p>
-<ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1.2.1">
-                    <p id="section-toc.1-1.9.2.1.2.1.1"><a href="#section-9.1.1" class="auto internal xref">9.1.1</a>.  <a href="#name-ec-ihat-2" class="internal xref">EC-IHAT</a></p>
-</li>
-                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1.2.2">
-                    <p id="section-toc.1-1.9.2.1.2.2.1"><a href="#section-9.1.2" class="auto internal xref">9.1.2</a>.  <a href="#name-longfellow-2" class="internal xref">Longfellow</a></p>
-</li>
-                </ul>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.2">
                 <p id="section-toc.1-1.9.2.2.1"><a href="#section-9.2" class="auto internal xref">9.2</a>.  <a href="#name-mole-credential-types" class="internal xref">MOLE Credential Types</a></p>
@@ -3198,103 +3190,46 @@ behavior, and Challenge-to-Context derivation. Type-specific Update encodings
         <h3 id="name-privacy-pass-token-types">
 <a href="#section-9.1" class="section-number selfRef">9.1. </a><a href="#name-privacy-pass-token-types" class="section-name selfRef">Privacy Pass Token Types</a>
         </h3>
-<p id="section-9.1-1">The following registrations are candidates only. Fields left TBD depend on
-how issuer-hiding token types fit <span>[<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span> (<a href="#common" class="auto internal xref">Section 3</a>).<a href="#section-9.1-1" class="pilcrow">¶</a></p>
-<div id="iana-ec-ihat">
-<section id="section-9.1.1">
-          <h4 id="name-ec-ihat-2">
-<a href="#section-9.1.1" class="section-number selfRef">9.1.1. </a><a href="#name-ec-ihat-2" class="section-name selfRef">EC-IHAT</a>
-          </h4>
-<ul class="normal">
-<li class="normal" id="section-9.1.1-1.1">
-              <p id="section-9.1.1-1.1.1">Value: TBD<a href="#section-9.1.1-1.1.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.2">
-              <p id="section-9.1.1-1.2.1">Name: EC-IHAT<a href="#section-9.1.1-1.2.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.3">
-              <p id="section-9.1.1-1.3.1">Token Structure: TBD<a href="#section-9.1.1-1.3.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.4">
-              <p id="section-9.1.1-1.4.1">Token Key Encoding: <code>SerializeElement(pkA)</code> (<span>[<a href="#EC-IHAT" class="cite xref">EC-IHAT</a>]</span>)<a href="#section-9.1.1-1.4.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.5">
-              <p id="section-9.1.1-1.5.1">TokenChallenge Structure: TBD, see <a href="#challenge-binding" class="auto internal xref">Section 4.1</a><a href="#section-9.1.1-1.5.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.6">
-              <p id="section-9.1.1-1.6.1">Publicly Verifiable: Y<a href="#section-9.1.1-1.6.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.7">
-              <p id="section-9.1.1-1.7.1">Public Metadata: Y, <code>ctx_iss</code><a href="#section-9.1.1-1.7.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.8">
-              <p id="section-9.1.1-1.8.1">Private Metadata: N<a href="#section-9.1.1-1.8.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.9">
-              <p id="section-9.1.1-1.9.1">Nk: TBD, depends on the Anchor set size<a href="#section-9.1.1-1.9.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.10">
-              <p id="section-9.1.1-1.10.1">Nid: TBD<a href="#section-9.1.1-1.10.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.11">
-              <p id="section-9.1.1-1.11.1">Change Controller: IETF<a href="#section-9.1.1-1.11.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.12">
-              <p id="section-9.1.1-1.12.1">Reference: <a href="#ec-ihat" class="auto internal xref">Section 4.3</a><a href="#section-9.1.1-1.12.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.1-1.13">
-              <p id="section-9.1.1-1.13.1">Notes: The grant takes two request/response exchanges with the Anchor.<a href="#section-9.1.1-1.13.1" class="pilcrow">¶</a></p>
-</li>
-          </ul>
-</section>
-</div>
-<div id="iana-longfellow">
-<section id="section-9.1.2">
-          <h4 id="name-longfellow-2">
-<a href="#section-9.1.2" class="section-number selfRef">9.1.2. </a><a href="#name-longfellow-2" class="section-name selfRef">Longfellow</a>
-          </h4>
-<ul class="normal">
-<li class="normal" id="section-9.1.2-1.1">
-              <p id="section-9.1.2-1.1.1">Value: TBD<a href="#section-9.1.2-1.1.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.2">
-              <p id="section-9.1.2-1.2.1">Name: Longfellow<a href="#section-9.1.2-1.2.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.3">
-              <p id="section-9.1.2-1.3.1">Token Structure: TBD<a href="#section-9.1.2-1.3.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.4">
-              <p id="section-9.1.2-1.4.1">Token Key Encoding: TBD<a href="#section-9.1.2-1.4.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.5">
-              <p id="section-9.1.2-1.5.1">TokenChallenge Structure: TBD, see <a href="#challenge-binding" class="auto internal xref">Section 4.1</a><a href="#section-9.1.2-1.5.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.6">
-              <p id="section-9.1.2-1.6.1">Publicly Verifiable: Y<a href="#section-9.1.2-1.6.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.7">
-              <p id="section-9.1.2-1.7.1">Public Metadata: N<a href="#section-9.1.2-1.7.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.8">
-              <p id="section-9.1.2-1.8.1">Private Metadata: N<a href="#section-9.1.2-1.8.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.9">
-              <p id="section-9.1.2-1.9.1">Nk: TBD<a href="#section-9.1.2-1.9.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.10">
-              <p id="section-9.1.2-1.10.1">Nid: TBD<a href="#section-9.1.2-1.10.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.11">
-              <p id="section-9.1.2-1.11.1">Change Controller: IETF<a href="#section-9.1.2-1.11.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.12">
-              <p id="section-9.1.2-1.12.1">Reference: <a href="#longfellow" class="auto internal xref">Section 4.4</a><a href="#section-9.1.2-1.12.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-9.1.2-1.13">
-              <p id="section-9.1.2-1.13.1">Notes: The grant is out of band.<a href="#section-9.1.2-1.13.1" class="pilcrow">¶</a></p>
-</li>
-          </ul>
-</section>
+<p id="section-9.1-1">The following are candidates for the Privacy Pass Token Types registry
+(<span><a href="https://rfc-editor.org/rfc/rfc9577#section-6.2" class="relref">Section 6.2</a> of [<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span>). Their values and the fields that
+depend on how issuer-hiding token types fit <span>[<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span>
+(<a href="#common" class="auto internal xref">Section 3</a>) are TBD.<a href="#section-9.1-1" class="pilcrow">¶</a></p>
+<span id="name-candidate-privacy-pass-toke"></span><div id="endorsement-types">
+<table class="center" id="table-3">
+          <caption>
+<a href="#table-3" class="selfRef">Table 3</a>:
+<a href="#name-candidate-privacy-pass-toke" class="selfRef">Candidate Privacy Pass Token Types</a>
+          </caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Value</th>
+              <th class="text-left" rowspan="1" colspan="1">Name</th>
+              <th class="text-left" rowspan="1" colspan="1">Publicly Verifiable</th>
+              <th class="text-left" rowspan="1" colspan="1">Notes</th>
+              <th class="text-left" rowspan="1" colspan="1">Reference</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">TBD</td>
+              <td class="text-left" rowspan="1" colspan="1">EC-IHAT</td>
+              <td class="text-left" rowspan="1" colspan="1">Y</td>
+              <td class="text-left" rowspan="1" colspan="1">Two grant exchanges</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <a href="#ec-ihat" class="auto internal xref">Section 4.3</a>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">TBD</td>
+              <td class="text-left" rowspan="1" colspan="1">Longfellow</td>
+              <td class="text-left" rowspan="1" colspan="1">Y</td>
+              <td class="text-left" rowspan="1" colspan="1">Grant is out of band</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <a href="#longfellow" class="auto internal xref">Section 4.4</a>
+</td>
+            </tr>
+          </tbody>
+        </table>
 </div>
 </section>
 </div>
@@ -3306,9 +3241,9 @@ how issuer-hiding token types fit <span>[<a href="#PRIVACYPASS-AUTH" class="cite
 <p id="section-9.2-1">One MOLE credential type identifies the issuance, presentation, and update
 payloads defined by a credential protocol.<a href="#section-9.2-1" class="pilcrow">¶</a></p>
 <span id="name-candidate-mole-credential-t"></span><div id="credential-types">
-<table class="center" id="table-3">
+<table class="center" id="table-4">
           <caption>
-<a href="#table-3" class="selfRef">Table 3</a>:
+<a href="#table-4" class="selfRef">Table 4</a>:
 <a href="#name-candidate-mole-credential-t" class="selfRef">Candidate MOLE Credential Type Values</a>
           </caption>
 <thead>
