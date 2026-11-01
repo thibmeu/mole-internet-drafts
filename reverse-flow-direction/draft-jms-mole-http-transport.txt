@@ -23,9 +23,8 @@ Abstract
    This document defines the Mole HTTP authentication scheme, which
    carries challenges and presentations for the endorsement and
    credential flows, and the headers used to return credential material.
-   The grant exchanges with the Anchor are defined per protocol in
-   [PROTOCOLS].  It is an HTTP instantiation of Privacy Pass with a
-   Reverse Flow.
+   Grants are Privacy Pass issuance.  It is an HTTP instantiation of
+   Privacy Pass with a Reverse Flow.
 
 About This Document
 
@@ -80,11 +79,10 @@ Table of Contents
    4.  The Mole-Credential Field
    5.  Configuration
    6.  Exchanges
-     6.1.  Grant
-     6.2.  Redeem & Issue
-     6.3.  Presentation
-     6.4.  Recovery
-     6.5.  Status Codes
+     6.1.  Redeem & Issue
+     6.2.  Presentation
+     6.3.  Recovery
+     6.4.  Status Codes
    7.  Security Considerations
    8.  IANA Considerations
      8.1.  Authentication Scheme
@@ -100,8 +98,8 @@ Table of Contents
    [PROTOCOLS] defines the MOLE messages.  This document carries them
    over HTTP.  Challenges and presentations use the Mole authentication
    scheme [HTTP].  Credential material returns in the Mole-Credential
-   response header.  Grant exchanges with an Anchor are HTTP POST
-   requests defined in [PROTOCOLS].
+   response header.  Grants are Privacy Pass issuance
+   [PRIVACYPASS-PROTOCOLS], and are not carried by this document.
 
    Redeem & Issue and Presentation and Update are reverse flows
    [REVERSE-FLOW].  This document is a transport for them, as
@@ -115,11 +113,11 @@ Table of Contents
       (Section 4);
 
    *  what a duplicate presentation does to the protected operation
-      (Section 6.3);
+      (Section 6.2);
 
-   *  how a Client recovers a lost update (Section 6.4); and
+   *  how a Client recovers a lost update (Section 6.3); and
 
-   *  which status codes carry each outcome (Section 6.5).
+   *  which status codes carry each outcome (Section 6.4).
 
       *Editor note.* Payloads are carried in header fields.  Their size
       argues for moving them to request and response content, which is
@@ -164,17 +162,13 @@ Table of Contents
 
    Each Mole challenge has exactly one payload parameter:
 
-     +=============+=========================+=======================+
-     | Parameter   | Registry                | Decoded payload       |
-     +=============+=========================+=======================+
-     | endorse-T   | Privacy Pass token type | Anchor context, empty |
-     |             |                         | for the types here    |
-     +-------------+-------------------------+-----------------------+
-     | redeem-T    | Privacy Pass token type | RedemptionChallenge   |
-     +-------------+-------------------------+-----------------------+
-     | challenge-T | Credential              | Type-specific         |
-     |             |                         | Challenge             |
-     +-------------+-------------------------+-----------------------+
+    +=============+=========================+=========================+
+    | Parameter   | Registry                | Decoded payload         |
+    +=============+=========================+=========================+
+    | redeem-T    | Privacy Pass token type | TokenChallenge          |
+    +-------------+-------------------------+-------------------------+
+    | challenge-T | Credential              | Type-specific Challenge |
+    +-------------+-------------------------+-------------------------+
 
                        Table 1: Challenge parameters
 
@@ -261,29 +255,11 @@ Table of Contents
 
 6.  Exchanges
 
-6.1.  Grant
-
-   WWW-Authenticate: Mole endorse-0002=""
-
-   The grant endpoint comes from Anchor configuration.  The Client sends
-   a POST with the type-specific grant message as its body.  The media
-   type is application/mole-endorsement-request with a required type
-   parameter using the same four-digit hexadecimal encoding.  The
-   response uses application/mole-endorsement-response with the same
-   type.  The Client MUST reject a mismatched type.  There is no outer
-   EndorsementRequest or EndorsementResponse wrapper.  The first EC-IHAT
-   request carries a GrantRequest naming the number of Endorsements the
-   Client asks for ([PROTOCOLS]):
-
-   Content-Type: application/mole-endorsement-request; type=0002
-
-   The criteria for granting are the Anchor's.
-
-6.2.  Redeem & Issue
+6.1.  Redeem & Issue
 
    The Moderator challenges with the endorsement type:
 
-   WWW-Authenticate: Mole redeem-0002="<redemption-challenge>"
+   WWW-Authenticate: Mole redeem-0002="<token-challenge>"
 
    The Client answers with a POST to the Redeem & Issue endpoint from
    configuration, whichever resource sent the challenge:
@@ -295,7 +271,7 @@ Table of Contents
 
    Mole-Credential: response-0001="<issuance-response>"
 
-6.3.  Presentation
+6.2.  Presentation
 
    The Moderator challenges with the credential type:
 
@@ -323,12 +299,12 @@ Table of Contents
    operation.  A rejected presentation MUST NOT carry Mole-Credential.
 
    A Client that receives no Mole-Credential after sending a
-   presentation keeps its pending state and MAY recover (Section 6.4).
+   presentation keeps its pending state and MAY recover (Section 6.3).
 
    Each credential type MUST define the challenge fields that partition
    cached Credentials, or state that its Credentials are not cacheable.
 
-6.4.  Recovery
+6.3.  Recovery
 
    Instead of resending a presentation, a Client MAY send a POST with
    empty content to the Redeem & Issue endpoint it stored with the
@@ -344,7 +320,7 @@ Table of Contents
    recorded NoUpdate.  Otherwise it answers 404 without Mole-Credential,
    whether or not a record exists.
 
-6.5.  Status Codes
+6.4.  Status Codes
 
    +===========================+====================+=================+
    | Outcome                   | Status             | Mole-Credential |
@@ -441,6 +417,12 @@ Table of Contents
               HTTP Authentication Scheme", RFC 9577,
               DOI 10.17487/RFC9577, June 2024,
               <https://www.rfc-editor.org/rfc/rfc9577>.
+
+   [PRIVACYPASS-PROTOCOLS]
+              Celi, S., Davidson, A., Valdez, S., and C. A. Wood,
+              "Privacy Pass Issuance Protocols", RFC 9578,
+              DOI 10.17487/RFC9578, June 2024,
+              <https://www.rfc-editor.org/rfc/rfc9578>.
 
    [PROTOCOLS]
               "MOLE Protocols", n.d., <https://datatracker.ietf.org/doc/

@@ -13,8 +13,8 @@
 an HTTP transport for the protocol flows defined by the architecture. 
        This document defines the  Mole  HTTP authentication scheme, which carries
 challenges and presentations for the endorsement and credential flows, and
-the headers used to return credential material. The grant exchanges with
-the Anchor are defined per protocol in  . It is an HTTP
+the headers used to return credential material. Grants are Privacy Pass
+issuance. It is an HTTP
 instantiation of Privacy Pass with a Reverse Flow. 
     " name="description">
 <meta content="xml2rfc 3.34.1" name="generator">
@@ -1099,8 +1099,8 @@ svg {
 an HTTP transport for the protocol flows defined by the architecture.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
 <p id="section-abstract-2">This document defines the <code>Mole</code> HTTP authentication scheme, which carries
 challenges and presentations for the endorsement and credential flows, and
-the headers used to return credential material. The grant exchanges with
-the Anchor are defined per protocol in <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>. It is an HTTP
+the headers used to return credential material. Grants are Privacy Pass
+issuance. It is an HTTP
 instantiation of Privacy Pass with a Reverse Flow.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
 </section>
 <section class="note rfcEditorRemove" id="section-note.1">
@@ -1181,19 +1181,16 @@ instantiation of Privacy Pass with a Reverse Flow.<a href="#section-abstract-2" 
             <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-exchanges" class="internal xref">Exchanges</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1">
-                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-grant" class="internal xref">Grant</a></p>
+                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-redeem-issue" class="internal xref">Redeem &amp; Issue</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2">
-                <p id="section-toc.1-1.6.2.2.1"><a href="#section-6.2" class="auto internal xref">6.2</a>.  <a href="#name-redeem-issue" class="internal xref">Redeem &amp; Issue</a></p>
+                <p id="section-toc.1-1.6.2.2.1"><a href="#section-6.2" class="auto internal xref">6.2</a>.  <a href="#name-presentation" class="internal xref">Presentation</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3">
-                <p id="section-toc.1-1.6.2.3.1"><a href="#section-6.3" class="auto internal xref">6.3</a>.  <a href="#name-presentation" class="internal xref">Presentation</a></p>
+                <p id="section-toc.1-1.6.2.3.1"><a href="#section-6.3" class="auto internal xref">6.3</a>.  <a href="#name-recovery" class="internal xref">Recovery</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.4">
-                <p id="section-toc.1-1.6.2.4.1"><a href="#section-6.4" class="auto internal xref">6.4</a>.  <a href="#name-recovery" class="internal xref">Recovery</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.5">
-                <p id="section-toc.1-1.6.2.5.1"><a href="#section-6.5" class="auto internal xref">6.5</a>.  <a href="#name-status-codes" class="internal xref">Status Codes</a></p>
+                <p id="section-toc.1-1.6.2.4.1"><a href="#section-6.4" class="auto internal xref">6.4</a>.  <a href="#name-status-codes" class="internal xref">Status Codes</a></p>
 </li>
             </ul>
 </li>
@@ -1240,8 +1237,8 @@ instantiation of Privacy Pass with a Reverse Flow.<a href="#section-abstract-2" 
 <p id="section-1-1"><span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span> defines the MOLE messages. This document carries them over
 HTTP. Challenges and presentations use the <code>Mole</code> authentication scheme
 <span>[<a href="#HTTP" class="cite xref">HTTP</a>]</span>. Credential material returns in the <code>Mole-Credential</code> response
-header. Grant exchanges with an Anchor are HTTP POST requests defined in
-<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>.<a href="#section-1-1" class="pilcrow">¶</a></p>
+header. Grants are Privacy Pass issuance <span>[<a href="#PRIVACYPASS-PROTOCOLS" class="cite xref">PRIVACYPASS-PROTOCOLS</a>]</span>, and
+are not carried by this document.<a href="#section-1-1" class="pilcrow">¶</a></p>
 <p id="section-1-2">Redeem &amp; Issue and Presentation and Update are reverse flows
 <span>[<a href="#REVERSE-FLOW" class="cite xref">REVERSE-FLOW</a>]</span>. This document is a transport for them, as
 <span>[<a href="#REVERSE-FLOW-HTTP" class="cite xref">REVERSE-FLOW-HTTP</a>]</span> is for Privacy Pass tokens. <span>[<a href="#REVERSE-FLOW" class="cite xref">REVERSE-FLOW</a>]</span> does not
@@ -1256,13 +1253,13 @@ say how a transport behaves. This document defines that behavior for MOLE:<a hre
 </li>
         <li class="normal" id="section-1-3.3">
           <p id="section-1-3.3.1">what a duplicate presentation does to the protected operation
-(<a href="#presentation" class="auto internal xref">Section 6.3</a>);<a href="#section-1-3.3.1" class="pilcrow">¶</a></p>
+(<a href="#presentation" class="auto internal xref">Section 6.2</a>);<a href="#section-1-3.3.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="section-1-3.4">
-          <p id="section-1-3.4.1">how a Client recovers a lost update (<a href="#recovery" class="auto internal xref">Section 6.4</a>); and<a href="#section-1-3.4.1" class="pilcrow">¶</a></p>
+          <p id="section-1-3.4.1">how a Client recovers a lost update (<a href="#recovery" class="auto internal xref">Section 6.3</a>); and<a href="#section-1-3.4.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="section-1-3.5">
-          <p id="section-1-3.5.1">which status codes carry each outcome (<a href="#status-codes" class="auto internal xref">Section 6.5</a>).<a href="#section-1-3.5.1" class="pilcrow">¶</a></p>
+          <p id="section-1-3.5.1">which status codes carry each outcome (<a href="#status-codes" class="auto internal xref">Section 6.4</a>).<a href="#section-1-3.5.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <ul class="normal ulEmpty">
@@ -1360,18 +1357,11 @@ is invalid.<a href="#section-3-2" class="pilcrow">¶</a></p>
         <tbody>
           <tr>
             <td class="text-left" rowspan="1" colspan="1">
-              <code>endorse-T</code>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">Privacy Pass token type</td>
-            <td class="text-left" rowspan="1" colspan="1">Anchor context, empty for the types here</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">
               <code>redeem-T</code>
 </td>
             <td class="text-left" rowspan="1" colspan="1">Privacy Pass token type</td>
             <td class="text-left" rowspan="1" colspan="1">
-              <code>RedemptionChallenge</code>
+              <code>TokenChallenge</code>
 </td>
           </tr>
           <tr>
@@ -1512,123 +1502,96 @@ HTTP request that carried it.<a href="#section-5-1" class="pilcrow">¶</a></p>
       <h2 id="name-exchanges">
 <a href="#section-6" class="section-number selfRef">6. </a><a href="#name-exchanges" class="section-name selfRef">Exchanges</a>
       </h2>
-<div id="grant">
-<section id="section-6.1">
-        <h3 id="name-grant">
-<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-grant" class="section-name selfRef">Grant</a>
-        </h3>
-<div class="alignLeft art-text artwork" id="section-6.1-1">
-<pre>
-WWW-Authenticate: Mole endorse-0002=""
-</pre><a href="#section-6.1-1" class="pilcrow">¶</a>
-</div>
-<p id="section-6.1-2">The grant endpoint comes from Anchor configuration. The Client sends a POST
-with the type-specific grant message as its body. The media type is
-<code>application/mole-endorsement-request</code> with a required <code>type</code> parameter using
-the same four-digit hexadecimal encoding. The response uses
-<code>application/mole-endorsement-response</code> with the same type. The Client <span class="bcp14">MUST</span>
-reject a mismatched type. There is no outer <code>EndorsementRequest</code> or
-<code>EndorsementResponse</code> wrapper. The first EC-IHAT request carries a
-<code>GrantRequest</code> naming the number of Endorsements the Client asks for
-(<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>):<a href="#section-6.1-2" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.1-3">
-<pre>
-Content-Type: application/mole-endorsement-request; type=0002
-</pre><a href="#section-6.1-3" class="pilcrow">¶</a>
-</div>
-<p id="section-6.1-4">The criteria for granting are the Anchor's.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
-</section>
-</div>
 <div id="redeem-issue">
-<section id="section-6.2">
+<section id="section-6.1">
         <h3 id="name-redeem-issue">
-<a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-redeem-issue" class="section-name selfRef">Redeem &amp; Issue</a>
+<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-redeem-issue" class="section-name selfRef">Redeem &amp; Issue</a>
         </h3>
-<p id="section-6.2-1">The Moderator challenges with the endorsement type:<a href="#section-6.2-1" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.2-2">
+<p id="section-6.1-1">The Moderator challenges with the endorsement type:<a href="#section-6.1-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-2">
 <pre>
-WWW-Authenticate: Mole redeem-0002="&lt;redemption-challenge&gt;"
-</pre><a href="#section-6.2-2" class="pilcrow">¶</a>
+WWW-Authenticate: Mole redeem-0002="&lt;token-challenge&gt;"
+</pre><a href="#section-6.1-2" class="pilcrow">¶</a>
 </div>
-<p id="section-6.2-3">The Client answers with a <code>POST</code> to the Redeem &amp; Issue endpoint from
-configuration, whichever resource sent the challenge:<a href="#section-6.2-3" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.2-4">
+<p id="section-6.1-3">The Client answers with a <code>POST</code> to the Redeem &amp; Issue endpoint from
+configuration, whichever resource sent the challenge:<a href="#section-6.1-3" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-4">
 <pre>
 Authorization: Mole redeem-0002="&lt;redemption&gt;",
                     credential-request-0001="&lt;issuance-request&gt;"
-</pre><a href="#section-6.2-4" class="pilcrow">¶</a>
+</pre><a href="#section-6.1-4" class="pilcrow">¶</a>
 </div>
-<p id="section-6.2-5">On success the Moderator answers <code>200</code> with:<a href="#section-6.2-5" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.2-6">
+<p id="section-6.1-5">On success the Moderator answers <code>200</code> with:<a href="#section-6.1-5" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-6">
 <pre>
 Mole-Credential: response-0001="&lt;issuance-response&gt;"
-</pre><a href="#section-6.2-6" class="pilcrow">¶</a>
+</pre><a href="#section-6.1-6" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
 <div id="presentation">
-<section id="section-6.3">
+<section id="section-6.2">
         <h3 id="name-presentation">
-<a href="#section-6.3" class="section-number selfRef">6.3. </a><a href="#name-presentation" class="section-name selfRef">Presentation</a>
+<a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-presentation" class="section-name selfRef">Presentation</a>
         </h3>
-<p id="section-6.3-1">The Moderator challenges with the credential type:<a href="#section-6.3-1" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.3-2">
+<p id="section-6.2-1">The Moderator challenges with the credential type:<a href="#section-6.2-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.2-2">
 <pre>
 WWW-Authenticate: Mole challenge-0001="&lt;ec-act-challenge&gt;"
-</pre><a href="#section-6.3-2" class="pilcrow">¶</a>
+</pre><a href="#section-6.2-2" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3-3">A challenge in a <code>401</code> response means the resource requires a presentation.
+<p id="section-6.2-3">A challenge in a <code>401</code> response means the resource requires a presentation.
 A challenge in a <code>200</code> response means a presentation is optional, for
 instance to raise a limit. Clients then apply the greasing rules of
-<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>.<a href="#section-6.3-3" class="pilcrow">¶</a></p>
-<p id="section-6.3-4">The Client repeats the protected request with:<a href="#section-6.3-4" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.3-5">
+<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>.<a href="#section-6.2-3" class="pilcrow">¶</a></p>
+<p id="section-6.2-4">The Client repeats the protected request with:<a href="#section-6.2-4" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.2-5">
 <pre>
 Authorization: Mole presentation-0001="&lt;presentation-and-update&gt;"
-</pre><a href="#section-6.3-5" class="pilcrow">¶</a>
+</pre><a href="#section-6.2-5" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3-6">The Moderator runs <code>ProcessPresentation</code>. Every response to an accepted
+<p id="section-6.2-6">The Moderator runs <code>ProcessPresentation</code>. Every response to an accepted
 presentation, fresh or not, <span class="bcp14">MUST</span> carry the recorded update, including when
-the protected operation fails with a <code>4xx</code> or <code>5xx</code> status:<a href="#section-6.3-6" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.3-7">
+the protected operation fails with a <code>4xx</code> or <code>5xx</code> status:<a href="#section-6.2-6" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.2-7">
 <pre>
 Mole-Credential: update-0001="&lt;update&gt;"
-</pre><a href="#section-6.3-7" class="pilcrow">¶</a>
+</pre><a href="#section-6.2-7" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3-8">For a fresh result the Moderator attempts the protected operation and
+<p id="section-6.2-8">For a fresh result the Moderator attempts the protected operation and
 returns its status. For a result that is not fresh, it <span class="bcp14">MUST</span> return <code>409</code>
 (<span><a href="https://rfc-editor.org/rfc/rfc9110#section-15.5.10" class="relref">Section 15.5.10</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>) and <span class="bcp14">MUST NOT</span> attempt the protected operation.
-A rejected presentation <span class="bcp14">MUST NOT</span> carry <code>Mole-Credential</code>.<a href="#section-6.3-8" class="pilcrow">¶</a></p>
-<p id="section-6.3-9">A Client that receives no <code>Mole-Credential</code> after sending a presentation
-keeps its pending state and <span class="bcp14">MAY</span> recover (<a href="#recovery" class="auto internal xref">Section 6.4</a>).<a href="#section-6.3-9" class="pilcrow">¶</a></p>
-<p id="section-6.3-10">Each credential type <span class="bcp14">MUST</span> define the challenge fields that partition cached
-Credentials, or state that its Credentials are not cacheable.<a href="#section-6.3-10" class="pilcrow">¶</a></p>
+A rejected presentation <span class="bcp14">MUST NOT</span> carry <code>Mole-Credential</code>.<a href="#section-6.2-8" class="pilcrow">¶</a></p>
+<p id="section-6.2-9">A Client that receives no <code>Mole-Credential</code> after sending a presentation
+keeps its pending state and <span class="bcp14">MAY</span> recover (<a href="#recovery" class="auto internal xref">Section 6.3</a>).<a href="#section-6.2-9" class="pilcrow">¶</a></p>
+<p id="section-6.2-10">Each credential type <span class="bcp14">MUST</span> define the challenge fields that partition cached
+Credentials, or state that its Credentials are not cacheable.<a href="#section-6.2-10" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="recovery">
-<section id="section-6.4">
+<section id="section-6.3">
         <h3 id="name-recovery">
-<a href="#section-6.4" class="section-number selfRef">6.4. </a><a href="#name-recovery" class="section-name selfRef">Recovery</a>
+<a href="#section-6.3" class="section-number selfRef">6.3. </a><a href="#name-recovery" class="section-name selfRef">Recovery</a>
         </h3>
-<p id="section-6.4-1">Instead of resending a presentation, a Client <span class="bcp14">MAY</span> send a <code>POST</code> with empty
-content to the Redeem &amp; Issue endpoint it stored with the Credential:<a href="#section-6.4-1" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.4-2">
+<p id="section-6.3-1">Instead of resending a presentation, a Client <span class="bcp14">MAY</span> send a <code>POST</code> with empty
+content to the Redeem &amp; Issue endpoint it stored with the Credential:<a href="#section-6.3-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.3-2">
 <pre>
 Authorization: Mole recovery-0001="&lt;recovery-handle&gt;"
-</pre><a href="#section-6.4-2" class="pilcrow">¶</a>
+</pre><a href="#section-6.3-2" class="pilcrow">¶</a>
 </div>
-<p id="section-6.4-3">The recovery handle is defined by the credential type in <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>. The
+<p id="section-6.3-3">The recovery handle is defined by the credential type in <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>. The
 Moderator treats it as the byte-identical presentation and uses no other
 Client identifier. It <span class="bcp14">MUST NOT</span> verify a proof or attempt the protected
 operation. If a result is still retained, it answers <code>200</code> with the recorded
 <code>update-T</code>, including the empty value for a recorded <code>NoUpdate</code>. Otherwise it
-answers <code>404</code> without <code>Mole-Credential</code>, whether or not a record exists.<a href="#section-6.4-3" class="pilcrow">¶</a></p>
+answers <code>404</code> without <code>Mole-Credential</code>, whether or not a record exists.<a href="#section-6.3-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="status-codes">
-<section id="section-6.5">
+<section id="section-6.4">
         <h3 id="name-status-codes">
-<a href="#section-6.5" class="section-number selfRef">6.5. </a><a href="#name-status-codes" class="section-name selfRef">Status Codes</a>
+<a href="#section-6.4" class="section-number selfRef">6.4. </a><a href="#name-status-codes" class="section-name selfRef">Status Codes</a>
         </h3>
 <span id="name-mole-responses"></span><div id="tab-status">
 <table class="center" id="table-4">
@@ -1709,12 +1672,12 @@ answers <code>404</code> without <code>Mole-Credential</code>, whether or not a 
           </tbody>
         </table>
 </div>
-<p id="section-6.5-2">The Moderator <span class="bcp14">MUST</span> use these rules for every credential type. A <code>401</code>
+<p id="section-6.4-2">The Moderator <span class="bcp14">MUST</span> use these rules for every credential type. A <code>401</code>
 response <span class="bcp14">MUST</span> carry a <code>Mole</code> challenge for the required exchange. A <code>403</code>
 returned by the protected operation after a fresh acceptance is that
-operation's status, and carries the update.<a href="#section-6.5-2" class="pilcrow">¶</a></p>
-<p id="section-6.5-3">A Client <span class="bcp14">MUST NOT</span> infer chain termination from any status without the
-recorded empty update.<a href="#section-6.5-3" class="pilcrow">¶</a></p>
+operation's status, and carries the update.<a href="#section-6.4-2" class="pilcrow">¶</a></p>
+<p id="section-6.4-3">A Client <span class="bcp14">MUST NOT</span> infer chain termination from any status without the
+recorded empty update.<a href="#section-6.4-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -1802,6 +1765,10 @@ registered in <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span
 <dt id="PRIVACYPASS-AUTH">[PRIVACYPASS-AUTH]</dt>
         <dd>
 <span class="refAuthor">Pauly, T.</span>, <span class="refAuthor">Valdez, S.</span>, and <span class="refAuthor">C. A. Wood</span>, <span class="refTitle">"The Privacy Pass HTTP Authentication Scheme"</span>, <span class="seriesInfo">RFC 9577</span>, <span class="seriesInfo">DOI 10.17487/RFC9577</span>, <time datetime="2024-06" class="refDate">June 2024</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9577">https://www.rfc-editor.org/rfc/rfc9577</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="PRIVACYPASS-PROTOCOLS">[PRIVACYPASS-PROTOCOLS]</dt>
+        <dd>
+<span class="refAuthor">Celi, S.</span>, <span class="refAuthor">Davidson, A.</span>, <span class="refAuthor">Valdez, S.</span>, and <span class="refAuthor">C. A. Wood</span>, <span class="refTitle">"Privacy Pass Issuance Protocols"</span>, <span class="seriesInfo">RFC 9578</span>, <span class="seriesInfo">DOI 10.17487/RFC9578</span>, <time datetime="2024-06" class="refDate">June 2024</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9578">https://www.rfc-editor.org/rfc/rfc9578</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="PROTOCOLS">[PROTOCOLS]</dt>
         <dd>
