@@ -41,9 +41,11 @@ normative:
   PROTOCOLS: #I-D.draft-jms-mole-protocols
     title: MOLE Protocols
     target: https://datatracker.ietf.org/doc/draft-jms-mole-protocols/00/
+  REVERSE-FLOW: I-D.draft-meunier-privacypass-reverse-flow
 
 informative:
   BASE64: RFC4648
+  REVERSE-FLOW-HTTP: I-D.draft-meunier-privacypass-reverse-flow-http
 
 ...
 
@@ -55,7 +57,8 @@ an HTTP transport for the protocol flows defined by the architecture.
 This document defines the `Mole` HTTP authentication scheme, which carries
 challenges and presentations for the endorsement and credential flows, and
 the headers used to return credential material. The grant exchanges with
-the Anchor are defined per protocol in {{PROTOCOLS}}.
+the Anchor are defined per protocol in {{PROTOCOLS}}. It is an HTTP
+instantiation of Privacy Pass with a Reverse Flow.
 
 
 --- middle
@@ -67,6 +70,23 @@ HTTP. Challenges and presentations use the `Mole` authentication scheme
 {{HTTP}}. Credential material returns in the `Mole-Credential` response
 header. Grant exchanges with an Anchor are HTTP POST requests defined in
 {{PROTOCOLS}}.
+
+Redeem & Issue and Presentation and Update are reverse flows
+{{REVERSE-FLOW}}. This document is a transport for them, as
+{{REVERSE-FLOW-HTTP}} is for Privacy Pass tokens. {{REVERSE-FLOW}} does not
+say how a transport behaves. This document defines that behavior for MOLE:
+
+* how a Client learns which flow a Moderator offers ({{http-authentication-scheme}});
+* how a Credential update, or its absence, is returned and processed
+  ({{mole-credential}});
+* what a duplicate presentation does to the protected operation
+  ({{presentation}});
+* how a Client recovers a lost update ({{recovery}}); and
+* which status codes carry each outcome ({{status-codes}}).
+
+> **Editor note.** Payloads are carried in header fields. Their size
+> argues for moving them to request and response content, which is left
+> for a future revision.
 
 # Conventions and Definitions
 
@@ -126,8 +146,7 @@ A `Mole` credential in `Authorization` selects one operation:
 
 `E` uses the endorsement registry. `C`, presentation, and recovery use the
 credential registry. Only Redeem & Issue has two payload
-parameters. It requires exactly one of each, in either order. Type 0001's
-empty redemption is carried as `redeem-0001=""`.
+parameters. It requires exactly one of each, in either order.
 
 Parameters use auth-param syntax ({{Section 11.2 of HTTP}}). Values can be
 tokens or quoted-strings. Senders quote empty values. Recipients unescape
