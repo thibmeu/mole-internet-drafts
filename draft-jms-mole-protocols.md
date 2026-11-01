@@ -49,6 +49,7 @@ normative:
   IANA: RFC8126
   LONGFELLOW: I-D.draft-google-cfrg-libzk
   QUIC: RFC9000
+  PRIVACYPASS-ARCH: RFC9576
   PRIVACYPASS-AUTH: RFC9577
   PRIVACYPASS-PROTOCOLS: RFC9578
   REVERSE-FLOW: I-D.draft-meunier-privacypass-reverse-flow
@@ -67,8 +68,10 @@ This document defines protocols that instantiate the MOLE architecture: two
 endorsement protocols, by which a Client proves to a Moderator that it holds
 an Endorsement from a trusted Anchor without revealing which one, and two
 credential protocols, by which a Moderator issues, verifies, and updates
-per-Client state without being able to link presentations. It also
-establishes the registries that identify these protocols.
+per-Client state without being able to link presentations. Endorsements
+are Privacy Pass tokens, and credential protocols are instances of Privacy
+Pass with a Reverse Flow. It also establishes the registry that identifies
+the credential protocols.
 
 
 --- middle
@@ -81,10 +84,21 @@ Credentials, and present those Credentials to Moderators to access
 resources. The architecture states the required properties of Endorsements
 and Credentials but does not say how to build them. This document does.
 
-It defines two endorsement protocols and two credential protocols. Each is
-identified by a type value from a registry established in this document
-({{iana}}). The HTTP carriage of challenges, requests, redemptions, and
-presentations is defined by {{HTTP-TRANSPORT}}. This document defines the
+It defines two endorsement protocols and two credential protocols. MOLE
+composes Privacy Pass {{PRIVACYPASS-ARCH}} with a Reverse Flow
+{{REVERSE-FLOW}}:
+
+* An Anchor is an Attester and Issuer. An Endorsement is a Privacy Pass
+  token, and an endorsement type is a Privacy Pass token type
+  ({{PRIVACYPASS-PROTOCOLS}}).
+* A Moderator is an Origin that operates an Origin Issuer. Redeem & Issue is a
+  reverse flow in which the redeemed Endorsement is the attestation for
+  Credential issuance. Presentation and Update is a reverse flow in which the
+  redeemed Credential is the attestation for its replacement.
+
+Credential types are identified by a type value from a registry
+established in this document ({{iana}}). The HTTP carriage of challenges,
+requests, redemptions, and presentations is defined by {{HTTP-TRANSPORT}}. This document defines the
 messages and their processing rules.
 
 TODO: the protocols below reflect our current understanding of how MOLE
@@ -149,7 +163,8 @@ Finalize:
 
 ## Message Types
 
-Endorsement and credential types are `uint16` values assigned in {{iana}}.
+Endorsement types are Privacy Pass token types. Credential types are
+`uint16` values assigned in {{iana}}.
 HTTP carries them in parameter suffixes or grant media-type parameters, not
 inside payload wrappers. A Client ignores an unknown Challenge. An unknown request
 or response is rejected. A Moderator treats an unknown optional presentation
@@ -157,7 +172,14 @@ as absent and rejects an unknown required presentation. Moderator Challenge
 material is never sent to an Anchor by the Client.
 
 The value 0x0000 is reserved in both registries and MUST NOT appear on the
-wire. Endorsement type 0x0001 means that no Endorsement is required.
+wire.
+
+> **Editor note.** How issuer-hiding token types extend the Privacy Pass
+> token type registry is TBD. In particular, `TokenChallenge`
+> ({{PRIVACYPASS-AUTH}}) names a single `issuer_name`, and token types fix
+> the size of their fields, while an issuer-hiding redemption names an Anchor
+> set and its size depends on that set. Until then, this document and
+> {{HTTP-TRANSPORT}} use 0x0002 as a placeholder for EC-IHAT.
 
 These canonical Challenge encodings are hash inputs, not HTTP payload
 wrappers. Both parties reconstruct them from the selected type and decoded
@@ -308,6 +330,10 @@ that accepts only the `redemption_context` it constructs rejects a
 redemption made under another Moderator's challenge. This does not stop a
 Moderator that relays another Moderator's challenge to the Client.
 
+`RedemptionChallenge` plays the role of the Privacy Pass `TokenChallenge`,
+and `challenge_digest` that of `Token.challenge_digest`
+({{PRIVACYPASS-AUTH}}). Aligning the two structures is TBD.
+
 The `Challenge` algorithm and `ChallengeMessage` in EC-IHAT issuance are
 defined by {{EC-IHAT}} and are unrelated to a `ModeratorChallenge`.
 
@@ -333,16 +359,6 @@ a Credential for the accompanying `IssuanceRequest`. There is no global
 replay protection service. The Moderator MUST retain an identifier while the
 Endorsement it came from can still verify, independently of credential key or
 context rotation.
-
-## No Endorsement Required {#no-endorsement-required}
-
-Endorsement type 0x0001 indicates that the Moderator does not require an
-Endorsement under its policy. It has no grant. The `endorsement` input and
-`Redemption` are both the distinguished empty value. `RedeemRequest` returns
-that empty value. `FinalizeRedeem` returns the empty set when the
-Moderator's policy permits issuance without an Endorsement, and `INVALID`
-otherwise. How often a Client can obtain a Credential this way is up to
-Moderator policy, for instance rate limiting.
 
 ## EC-IHAT {#ec-ihat}
 
@@ -612,6 +628,14 @@ Redeem & Issue carries a redemption and an issuance request. The Moderator
 runs the endorsement protocol's `FinalizeRedeem` before accepting issuance.
 Presentation carries `PresentationAndUpdate` and returns `Update` or a recorded
 `NoUpdate` decision. {{HTTP-TRANSPORT}} carries these payloads directly.
+
+Both exchanges are reverse flows ({{Section 4 of REVERSE-FLOW}}). The
+`IssuanceRequest` and `PresentationAndUpdate` carry the reverse flow
+`CredentialRequest`, `IssuanceResponse` and `Update` its
+`CredentialResponse`, and `FinalizeIssuance` and `FinalizeUpdate` its
+`CredentialFinalization`. The Moderator is the Origin Issuer. A credential
+protocol adds to {{REVERSE-FLOW}} a presentation and update bound in one
+message, the explicit `NoUpdate` decision, and the retry semantics below.
 
 `CredentialRequest` names the pair of Redeem & Issue payloads: the
 endorsement type and its `Redemption`, and the credential type and its
@@ -1172,9 +1196,13 @@ the binding between update and presented credential. Open problem.
 # Key Rotation and Discovery {#key-rotation}
 
 Each Anchor and Moderator publishes a configuration, which a Client fetches
-over an authenticated channel. For example, a Moderator accepting EC-IHAT
-Endorsements from two Anchors and issuing EC-ACT Credentials publishes, in JSON
-with byte strings truncated:
+over an authenticated channel. An Anchor configuration plays the role of
+the Issuer directory of {{Section 4 of PRIVACYPASS-PROTOCOLS}}. A Moderator
+configuration is the Origin Issuer configuration of {{Section 4.4 of
+REVERSE-FLOW}}, extended with the Anchor sets it accepts.
+
+For example, a Moderator accepting EC-IHAT Endorsements from two Anchors and
+issuing EC-ACT Credentials publishes, in JSON with byte strings truncated:
 
 ~~~ json
 {
@@ -1216,11 +1244,6 @@ $anchor-configuration /= {
   "ciphersuite": tstr,
   "anchor-key": bstr,               ; SerializeElement(pkA)
   "issuance-epoch": bstr,           ; ctx_iss
-  * tstr => any
-}
-
-$endorsement /= {
-  "endorsement-type": 1,            ; No Endorsement Required
   * tstr => any
 }
 
@@ -1428,9 +1451,11 @@ Verification cost:
 
 # IANA Considerations {#iana}
 
-This document sketches two candidate registries under a future "MOLE"
-group. The values below are candidate values for discussion in this -00
-draft and are not stable assignments.
+This document sketches one candidate registry under a future "MOLE"
+group, for the credential protocols of Privacy Pass with a Reverse Flow, and
+candidate endorsement types for the Privacy Pass token type registry
+({{PRIVACYPASS-PROTOCOLS}}). The values below are candidate values for
+discussion in this -00 draft and are not stable assignments.
 
 New registrations use Specification Required as defined by {{IANA}}. A
 specification MUST define the structures and abstract operations required by
@@ -1444,10 +1469,13 @@ MUST be nonempty so HTTP can represent `NoUpdate` as an empty payload.
 
 ## MOLE Endorsement Types
 
+Endorsement types are Privacy Pass token types. The table below lists
+candidate values. How issuer-hiding token types are registered in the
+Privacy Pass token type registry is TBD ({{common}}).
+
 | Value           | Name                          | Reference      |
 |:----------------|:------------------------------|:---------------|
 | 0x0000          | Reserved                      | this document  |
-| 0x0001          | No Endorsement Required       | {{no-endorsement-required}} |
 | 0x0002          | EC-IHAT                        | {{ec-ihat}}     |
 | 0x0003          | Longfellow                    | {{longfellow}} |
 | 0xFF00 - 0xFFFF | Reserved for testing          | this document  |
