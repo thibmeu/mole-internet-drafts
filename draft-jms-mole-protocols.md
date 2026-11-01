@@ -165,9 +165,9 @@ Finalize:
 
 Endorsement types are Privacy Pass token types. Credential types are
 `uint16` values assigned in {{iana}}.
-HTTP carries them in parameter suffixes or grant media-type parameters, not
-inside payload wrappers. A Client ignores an unknown Challenge. An unknown request
-or response is rejected. A Moderator treats an unknown optional presentation
+HTTP carries them in parameter suffixes, not inside payload wrappers. A
+Client ignores an unknown Challenge. An unknown request or response is
+rejected. A Moderator treats an unknown optional presentation
 as absent and rejects an unknown required presentation. Moderator Challenge
 material is never sent to an Anchor by the Client.
 
@@ -182,16 +182,13 @@ Privacy Pass token type registry, and MUST NOT appear on the wire.
 > document and {{HTTP-TRANSPORT}} use 0x0002 for EC-IHAT and 0x0003 for
 > Longfellow as placeholders. They collide with existing assignments.
 
-These canonical Challenge encodings are hash inputs, not HTTP payload
-wrappers. Both parties reconstruct them from the selected type and decoded
-type-specific payload, preserving the cryptographic transcripts:
+The endorsement Challenge is a Privacy Pass `TokenChallenge`
+({{challenge-binding}}). The credential Challenge has a canonical encoding.
+It is a hash input, not an HTTP payload wrapper. Both parties reconstruct it
+from the selected type and decoded type-specific payload, preserving the
+cryptographic transcripts:
 
 ~~~ tls-presentation
-struct {
-  uint16 endorsement_type;
-  opaque challenge<V>;      /* RedemptionChallenge */
-} ModeratorChallenge;
-
 struct {
   uint16 credential_type;
   opaque challenge<V>;      /* type-specific Challenge */
@@ -277,34 +274,26 @@ Finalize                          |
 ~~~
 {: #fig-endorsement-flow title="Endorsement grant and redemption"}
 
-Exchanges with the Anchor are HTTP POST requests carrying the type-specific
-grant messages directly, as specified in {{HTTP-TRANSPORT}}. The endorsement
-type determines how many exchanges are needed and the message at each step.
-
-The Anchor returns 200 (OK) with the response media type only when it produced
-a complete grant response. A Client MUST reject a non-success status, an
-unexpected media type, a response whose type differs from its request, trailing
-bytes, or malformed type-specific content. Clients MUST NOT automatically
-redirect a grant POST carrying protocol state.
+The grant is the issuance protocol of the endorsement token type, carried
+as in {{PRIVACYPASS-PROTOCOLS}}, with the `application/private-token-request`
+and `application/private-token-response` media types. The endorsement type
+determines how many exchanges are needed and the message at each step.
 
 Every endorsement protocol defines a `Redemption` structure, sent with the
 issuance request in Redeem & Issue ({{credential-protocols}}).
 
 ## Redemption Challenge Binding {#challenge-binding}
 
-The type-specific body of `ModeratorChallenge` is:
-
-~~~ tls-presentation
-struct {
-  opaque redemption_context[32];
-} RedemptionChallenge;
-~~~
-
-The structure fields are:
+The Moderator challenges with a `TokenChallenge` ({{Section 2.1 of
+PRIVACYPASS-AUTH}}) whose `token_type` is the endorsement type.
 
 * `redemption_context` scopes the redemption. The Moderator constructs it
   and the Client uses it as received. It MUST distinguish the Moderator and
   the policy it issues under, and SHOULD distinguish a time window.
+
+> **Editor note.** `issuer_name` names a single Issuer. For an issuer-hiding
+> token type it would name the Anchor set, for instance the Moderator
+> configuration listing it ({{key-rotation}}). This is TBD.
 
 The Client does not send the challenge back. The Moderator either keeps the
 challenges it sends or recomputes `redemption_context` when a request
@@ -318,28 +307,18 @@ a redemption:
 challenge_digest = SHA-256(moderator_challenge)
 ~~~
 
-The values are defined as follows:
-
-* `moderator_challenge` is the canonical `ModeratorChallenge` reconstructed
-  from the selected endorsement type and decoded challenge payload ({{common}}).
-  It is not required to contain an origin.
-* `challenge_digest` is the 32-octet SHA-256 digest of
-  `moderator_challenge`. It is not computed over a base64url or other textual
-  encoding. SHA-256 is defined in {{SHA2}}.
+where `moderator_challenge` is the encoded `TokenChallenge`, as for
+`Token.challenge_digest` ({{Section 2.2 of PRIVACYPASS-AUTH}}).
 
 `challenge_digest` enters the Fiat-Shamir transcript in both EC-IHAT and
 Longfellow, but is not a Longfellow circuit public input. A redemption created
-for one `ModeratorChallenge` does not verify under another, so a Moderator
+for one `TokenChallenge` does not verify under another, so a Moderator
 that accepts only the `redemption_context` it constructs rejects a
 redemption made under another Moderator's challenge. This does not stop a
 Moderator that relays another Moderator's challenge to the Client.
 
-`RedemptionChallenge` plays the role of the Privacy Pass `TokenChallenge`,
-and `challenge_digest` that of `Token.challenge_digest`
-({{PRIVACYPASS-AUTH}}). Aligning the two structures is TBD.
-
 The `Challenge` algorithm and `ChallengeMessage` in EC-IHAT issuance are
-defined by {{EC-IHAT}} and are unrelated to a `ModeratorChallenge`.
+defined by {{EC-IHAT}} and are unrelated to a `TokenChallenge`.
 
 ## Abstract Endorsement API
 
@@ -374,11 +353,8 @@ message encodings are defined there.
 
 ### Configuration
 
-The Client needs, from Anchor configuration ({{key-rotation}}):
-
-EC-IHAT Ciphersuite
-: A ciphersuite identifier defined by {{EC-IHAT}}. It determines
-  `Element`, `Scalar`, and all cryptographic encodings.
+The token type fixes the {{EC-IHAT}} ciphersuite. The Client needs, from
+the Anchor's Issuer directory ({{key-rotation}}):
 
 Anchor Public Key
 : `pkA`, an `Element`, as generated in {{EC-IHAT}}. An Anchor has one
@@ -613,7 +589,7 @@ exchange.
 | Client |                             | Moderator |
 +---+----+                             +-----+-----+
     |                                        |
-    |<--------- ModeratorChallenge ----------+
+    |<---------- TokenChallenge -------------+
     +--- Redemption + IssuanceRequest ------>|  HTTP request
     |<---------- IssuanceResponse -----------+
 Finalize                                    |
@@ -1138,8 +1114,8 @@ which it is presented. It MUST be the same for every Client using a given
 configuration, and MUST NOT contain a per-Client or per-request value.
 The Client checks agreement with its configuration, not consistency across
 Clients ({{privacy-considerations}}).
-`Token.challenge_digest` is SHA-256 over the encoded `TokenChallenge`. It is
-distinct from the endorsement `challenge_digest` of {{challenge-binding}}.
+`Token.challenge_digest` is computed as in {{challenge-binding}}, over this
+`TokenChallenge` rather than the endorsement one.
 
 The Moderator processes a presentation as follows:
 
@@ -1148,18 +1124,16 @@ The Moderator processes a presentation as follows:
    if the record holds the SHA-256 digest of the received
    `PresentationAndUpdate` octets and is still retained. Otherwise it rejects the presentation. Only an unrecorded
    nonce proceeds to step 2.
-2. It verifies the token as specified by {{PRIVACYPASS-AUTH}} against the
-   accepted key matching `token.token_type` and `token.token_key_id`, and
-   that key's `TokenChallenge`, including `Token.challenge_digest`. It
-   rejects the presentation if verification fails.
-3. It decides under its policy whether to issue an update and, if so, runs
-   the issuance of the configured issuance token type on `token_request`.
-4. It atomically records under `(token.token_key_id, token.nonce)` the
+2. It verifies the token before `token_request`, as
+   {{Section 7.1 of REVERSE-FLOW}} requires, against the accepted key matching
+   `token.token_type` and `token.token_key_id` and that key's
+   `TokenChallenge`. Under its policy, it may decline to issue an update.
+3. It atomically records under `(token.token_key_id, token.nonce)` the
    digest of the `PresentationAndUpdate` octets and the result: the
    `Update`, or no update. Recording MUST fail if a record exists. If any
    step fails, or it is unknown whether the result was recorded, no update is
    released and the protected operation MUST NOT be attempted.
-5. It returns the recorded result with `fresh` true and attempts the
+4. It returns the recorded result with `fresh` true and attempts the
    protected operation.
 
 ### Retry after a lost response
@@ -1193,8 +1167,10 @@ the binding between update and presented credential. Open problem.
 # Key Rotation and Discovery {#key-rotation}
 
 Each Anchor and Moderator publishes a configuration, which a Client fetches
-over an authenticated channel. An Anchor configuration plays the role of
-the Issuer directory of {{Section 4 of PRIVACYPASS-PROTOCOLS}}. A Moderator
+over an authenticated channel. An Anchor publishes the Issuer directory of
+{{Section 4 of PRIVACYPASS-PROTOCOLS}}, whose `token-keys` carry `pkA` and
+whose `issuer-request-uri` is the grant endpoint. Where it carries
+`ctx_iss` is TBD. A Moderator
 configuration is the Origin Issuer configuration of {{Section 4.4 of
 REVERSE-FLOW}}, extended with the Anchor sets it accepts.
 
@@ -1207,7 +1183,6 @@ issuing EC-ACT Credentials publishes, in JSON with byte strings truncated:
   "endorsements": [
     {
       "endorsement-type": 2,
-      "ciphersuite": "P256-SHA256",
       "issuance-epoch": "MjAyNi0xMA",
       "anchor-set": ["A8mT...", "Ao3L..."]
     }
@@ -1235,18 +1210,8 @@ moderator-configuration = {
   * tstr => any
 }
 
-$anchor-configuration /= {
-  "grant-uri": tstr,
-  "endorsement-type": 2,            ; EC-IHAT
-  "ciphersuite": tstr,
-  "anchor-key": bstr,               ; SerializeElement(pkA)
-  "issuance-epoch": bstr,           ; ctx_iss
-  * tstr => any
-}
-
 $endorsement /= {
   "endorsement-type": 2,            ; EC-IHAT
-  "ciphersuite": tstr,
   "issuance-epoch": bstr,           ; ctx_iss
   "anchor-set": [+ bstr],           ; SerializeElement(pkA), in order
   * tstr => any
@@ -1273,7 +1238,7 @@ $credential-key /= {
 }
 ~~~
 
-`grant-uri` and `issuance-uri` are absolute HTTPS URIs without userinfo or
+`issuance-uri` is an absolute HTTPS URI without userinfo or
 fragments. Other protocols,
 such as {{longfellow}}, add entries to the sockets. A Client ignores unknown
 members and skips entries of unknown types.
@@ -1555,20 +1520,6 @@ The registration template contains:
 These values MUST NOT be assigned. Message bodies carrying them contain
 random bytes ({{greasing}}).
 
-## Media Types
-
-| Media Type                            | Reference                 |
-|:--------------------------------------|:--------------------------|
-| application/mole-endorsement-request  | {{endorsement-protocols}} |
-| application/mole-endorsement-response | {{endorsement-protocols}} |
-{: #media-types-table title="MOLE Media Types"}
-
-Both media types require a `type` parameter containing the Privacy Pass
-token type of the Endorsement, as four hexadecimal digits
-({{HTTP-TRANSPORT}}). Bodies are the
-type-specific binary grant messages. Duplicate or mismatched type parameters
-are rejected. Neither type has optional parameters defined here.
-
 > **Editor note.** The final registry names and expert-review instructions
 > remain to be specified.
 
@@ -1592,7 +1543,7 @@ Moderator.
     +-- GrantChallenges -->|                 |
     |<--- GrantResponses --+                 |
 Finalize                   |                 |
-    |<---------- ModeratorChallenge ---------+
+    |<----------- TokenChallenge ------------+
     |   Redemption + IssuanceRequest         |
     +--------------------------------------->|
     |<---------------------------------------+
@@ -1609,7 +1560,7 @@ Finalize                   |                 |
 
 The grant follows {{ec-ihat}}. The Client finalizes each `ResponseMessage`
 in the `GrantResponses` into an Endorsement. It uses one of them here: it
-obtains a `ModeratorChallenge`, computes its digest,
+obtains a `TokenChallenge`, computes its digest,
 and sends the EC-IHAT `Redemption` with a Privacy Pass `TokenRequest` to
 the Redeem & Issue endpoint.
 

@@ -42,6 +42,7 @@ normative:
     title: MOLE Protocols
     target: https://datatracker.ietf.org/doc/draft-jms-mole-protocols/00/
   PRIVACYPASS-AUTH: RFC9577
+  PRIVACYPASS-PROTOCOLS: RFC9578
   REVERSE-FLOW: I-D.draft-meunier-privacypass-reverse-flow
 
 informative:
@@ -57,8 +58,8 @@ an HTTP transport for the protocol flows defined by the architecture.
 
 This document defines the `Mole` HTTP authentication scheme, which carries
 challenges and presentations for the endorsement and credential flows, and
-the headers used to return credential material. The grant exchanges with
-the Anchor are defined per protocol in {{PROTOCOLS}}. It is an HTTP
+the headers used to return credential material. Grants are Privacy Pass
+issuance. It is an HTTP
 instantiation of Privacy Pass with a Reverse Flow.
 
 
@@ -69,8 +70,8 @@ instantiation of Privacy Pass with a Reverse Flow.
 {{PROTOCOLS}} defines the MOLE messages. This document carries them over
 HTTP. Challenges and presentations use the `Mole` authentication scheme
 {{HTTP}}. Credential material returns in the `Mole-Credential` response
-header. Grant exchanges with an Anchor are HTTP POST requests defined in
-{{PROTOCOLS}}.
+header. Grants are Privacy Pass issuance {{PRIVACYPASS-PROTOCOLS}}, and
+are not carried by this document.
 
 Redeem & Issue and Presentation and Update are reverse flows
 {{REVERSE-FLOW}}. This document is a transport for them, as
@@ -127,8 +128,7 @@ Each `Mole` challenge has exactly one payload parameter:
 
 | Parameter | Registry | Decoded payload |
 |---|---|---|
-| `endorse-T` | Privacy Pass token type | Anchor context, empty for the types here |
-| `redeem-T` | Privacy Pass token type | `RedemptionChallenge` |
+| `redeem-T` | Privacy Pass token type | `TokenChallenge` |
 | `challenge-T` | Credential | Type-specific `Challenge` |
 {: title="Challenge parameters"}
 
@@ -201,34 +201,12 @@ HTTP request that carried it.
 
 # Exchanges
 
-## Grant {#grant}
-
-~~~
-WWW-Authenticate: Mole endorse-0002=""
-~~~
-
-The grant endpoint comes from Anchor configuration. The Client sends a POST
-with the type-specific grant message as its body. The media type is
-`application/mole-endorsement-request` with a required `type` parameter using
-the same four-digit hexadecimal encoding. The response uses
-`application/mole-endorsement-response` with the same type. The Client MUST
-reject a mismatched type. There is no outer `EndorsementRequest` or
-`EndorsementResponse` wrapper. The first EC-IHAT request carries a
-`GrantRequest` naming the number of Endorsements the Client asks for
-({{PROTOCOLS}}):
-
-~~~
-Content-Type: application/mole-endorsement-request; type=0002
-~~~
-
-The criteria for granting are the Anchor's.
-
 ## Redeem & Issue {#redeem-issue}
 
 The Moderator challenges with the endorsement type:
 
 ~~~
-WWW-Authenticate: Mole redeem-0002="<redemption-challenge>"
+WWW-Authenticate: Mole redeem-0002="<token-challenge>"
 ~~~
 
 The Client answers with a `POST` to the Redeem & Issue endpoint from
