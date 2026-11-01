@@ -153,27 +153,28 @@ Table of Contents
        |<------------ Mole-Credential: update-T= --+
        |                                           |
 
-   Payload parameter names end in -T, where T is a registered
-   endorsement or credential type from [PROTOCOLS], written as exactly
-   four lowercase hexadecimal digits.  For example, EC-IHAT (endorsement
-   type 0x0002) is challenged with redeem-0002, and EC-ACT (credential
-   type 0x0001) is presented with presentation-0001.  Recipients also
-   accept uppercase digits, since parameter names are case-insensitive
-   (Section 11.2 of [HTTP]).  Type 0x0000 is invalid.
+   Payload parameter names end in -T, where T is a Privacy Pass token
+   type ([PRIVACYPASS-AUTH]) for endorsements or a registered credential
+   type from [PROTOCOLS], written as exactly four lowercase hexadecimal
+   digits.  For example, EC-IHAT (placeholder token type 0x0002) is
+   challenged with redeem-0002, and EC-ACT (credential type 0x0001) is
+   presented with presentation-0001.  Recipients also accept uppercase
+   digits, since parameter names are case-insensitive (Section 11.2 of
+   [HTTP]).  Type 0x0000 is invalid.
 
    Each Mole challenge has exactly one payload parameter:
 
-           +=============+=============+=======================+
-           | Parameter   | Registry    | Decoded payload       |
-           +=============+=============+=======================+
-           | endorse-T   | Endorsement | Anchor context, empty |
-           |             |             | for the types here    |
-           +-------------+-------------+-----------------------+
-           | redeem-T    | Endorsement | RedemptionChallenge   |
-           +-------------+-------------+-----------------------+
-           | challenge-T | Credential  | Type-specific         |
-           |             |             | Challenge             |
-           +-------------+-------------+-----------------------+
+     +=============+=========================+=======================+
+     | Parameter   | Registry                | Decoded payload       |
+     +=============+=========================+=======================+
+     | endorse-T   | Privacy Pass token type | Anchor context, empty |
+     |             |                         | for the types here    |
+     +-------------+-------------------------+-----------------------+
+     | redeem-T    | Privacy Pass token type | RedemptionChallenge   |
+     +-------------+-------------------------+-----------------------+
+     | challenge-T | Credential              | Type-specific         |
+     |             |                         | Challenge             |
+     +-------------+-------------------------+-----------------------+
 
                        Table 1: Challenge parameters
 
@@ -197,7 +198,7 @@ Table of Contents
 
                     Table 2: Authorization parameters
 
-   E uses the endorsement registry.  C, presentation, and recovery use
+   E is a Privacy Pass token type.  C, presentation, and recovery use
    the credential registry.  Only Redeem & Issue has two payload
    parameters.  It requires exactly one of each, in either order.
 
@@ -423,8 +424,8 @@ Table of Contents
    This document registers the Mole-Credential field name in the
    "Hypertext Transfer Protocol (HTTP) Field Name Registry".
 
-   Endorsement and credential type values are registered in [PROTOCOLS],
-   not in this document.
+   Endorsement types are Privacy Pass token types.  Credential type
+   values are registered in [PROTOCOLS], not in this document.
 
 9.  References
 
@@ -434,6 +435,12 @@ Table of Contents
               Ed., "HTTP Semantics", STD 97, RFC 9110,
               DOI 10.17487/RFC9110, June 2022,
               <https://www.rfc-editor.org/rfc/rfc9110>.
+
+   [PRIVACYPASS-AUTH]
+              Pauly, T., Valdez, S., and C. A. Wood, "The Privacy Pass
+              HTTP Authentication Scheme", RFC 9577,
+              DOI 10.17487/RFC9577, June 2024,
+              <https://www.rfc-editor.org/rfc/rfc9577>.
 
    [PROTOCOLS]
               "MOLE Protocols", n.d., <https://datatracker.ietf.org/doc/

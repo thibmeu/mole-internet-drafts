@@ -1336,9 +1336,10 @@ type-specific payloads directly, without outer type or length wrappers.<a href="
           </svg><a href="#section-3-1.1" class="pilcrow">¶</a>
 </div>
 </div>
-<p id="section-3-2">Payload parameter names end in <code>-T</code>, where <code>T</code> is a registered endorsement or
-credential type from <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>, written as exactly four lowercase
-hexadecimal digits. For example, EC-IHAT (endorsement type 0x0002) is
+<p id="section-3-2">Payload parameter names end in <code>-T</code>, where <code>T</code> is a Privacy Pass token type
+(<span>[<a href="#PRIVACYPASS-AUTH" class="cite xref">PRIVACYPASS-AUTH</a>]</span>) for endorsements or a registered credential type from
+<span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>, written as exactly four lowercase hexadecimal digits. For
+example, EC-IHAT (placeholder token type 0x0002) is
 challenged with <code>redeem-0002</code>, and EC-ACT (credential type 0x0001) is presented
 with <code>presentation-0001</code>. Recipients also accept uppercase digits, since
 parameter names are case-insensitive (<span><a href="https://rfc-editor.org/rfc/rfc9110#section-11.2" class="relref">Section 11.2</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>). Type 0x0000
@@ -1361,14 +1362,14 @@ is invalid.<a href="#section-3-2" class="pilcrow">¶</a></p>
             <td class="text-left" rowspan="1" colspan="1">
               <code>endorse-T</code>
 </td>
-            <td class="text-left" rowspan="1" colspan="1">Endorsement</td>
+            <td class="text-left" rowspan="1" colspan="1">Privacy Pass token type</td>
             <td class="text-left" rowspan="1" colspan="1">Anchor context, empty for the types here</td>
           </tr>
           <tr>
             <td class="text-left" rowspan="1" colspan="1">
               <code>redeem-T</code>
 </td>
-            <td class="text-left" rowspan="1" colspan="1">Endorsement</td>
+            <td class="text-left" rowspan="1" colspan="1">Privacy Pass token type</td>
             <td class="text-left" rowspan="1" colspan="1">
               <code>RedemptionChallenge</code>
 </td>
@@ -1424,7 +1425,7 @@ same Moderator's configuration, independently of the endorsement type.<a href="#
           </tr>
         </tbody>
       </table>
-<p id="section-3-8"><code>E</code> uses the endorsement registry. <code>C</code>, presentation, and recovery use the
+<p id="section-3-8"><code>E</code> is a Privacy Pass token type. <code>C</code>, presentation, and recovery use the
 credential registry. Only Redeem &amp; Issue has two payload
 parameters. It requires exactly one of each, in either order.<a href="#section-3-8" class="pilcrow">¶</a></p>
 <p id="section-3-9">Parameters use auth-param syntax (<span><a href="https://rfc-editor.org/rfc/rfc9110#section-11.2" class="relref">Section 11.2</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>). Values can be
@@ -1777,8 +1778,8 @@ registry.<a href="#section-8.1-1" class="pilcrow">¶</a></p>
         </h3>
 <p id="section-8.2-1">This document registers the <code>Mole-Credential</code> field name in the
 "Hypertext Transfer Protocol (HTTP) Field Name Registry".<a href="#section-8.2-1" class="pilcrow">¶</a></p>
-<p id="section-8.2-2">Endorsement and credential type values are registered in <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>, not
-in this document.<a href="#section-8.2-2" class="pilcrow">¶</a></p>
+<p id="section-8.2-2">Endorsement types are Privacy Pass token types. Credential type values are
+registered in <span>[<a href="#PROTOCOLS" class="cite xref">PROTOCOLS</a>]</span>, not in this document.<a href="#section-8.2-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -1797,6 +1798,10 @@ in this document.<a href="#section-8.2-2" class="pilcrow">¶</a></p>
 <dt id="HTTP">[HTTP]</dt>
         <dd>
 <span class="refAuthor">Fielding, R., Ed.</span>, <span class="refAuthor">Nottingham, M., Ed.</span>, and <span class="refAuthor">J. Reschke, Ed.</span>, <span class="refTitle">"HTTP Semantics"</span>, <span class="seriesInfo">STD 97</span>, <span class="seriesInfo">RFC 9110</span>, <span class="seriesInfo">DOI 10.17487/RFC9110</span>, <time datetime="2022-06" class="refDate">June 2022</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9110">https://www.rfc-editor.org/rfc/rfc9110</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="PRIVACYPASS-AUTH">[PRIVACYPASS-AUTH]</dt>
+        <dd>
+<span class="refAuthor">Pauly, T.</span>, <span class="refAuthor">Valdez, S.</span>, and <span class="refAuthor">C. A. Wood</span>, <span class="refTitle">"The Privacy Pass HTTP Authentication Scheme"</span>, <span class="seriesInfo">RFC 9577</span>, <span class="seriesInfo">DOI 10.17487/RFC9577</span>, <time datetime="2024-06" class="refDate">June 2024</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9577">https://www.rfc-editor.org/rfc/rfc9577</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="PROTOCOLS">[PROTOCOLS]</dt>
         <dd>
