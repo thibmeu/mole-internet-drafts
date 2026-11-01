@@ -1438,40 +1438,16 @@ MUST be nonempty so HTTP can represent `NoUpdate` as an empty payload.
 
 ## Privacy Pass Token Types
 
-The following registrations are candidates only. Fields left TBD depend on
-how issuer-hiding token types fit {{PRIVACYPASS-AUTH}} ({{common}}).
+The following are candidates for the Privacy Pass Token Types registry
+({{Section 6.2 of PRIVACYPASS-AUTH}}). Their values and the fields that
+depend on how issuer-hiding token types fit {{PRIVACYPASS-AUTH}}
+({{common}}) are TBD.
 
-### EC-IHAT {#iana-ec-ihat}
-
-* Value: TBD
-* Name: EC-IHAT
-* Token Structure: TBD
-* Token Key Encoding: `SerializeElement(pkA)` ({{EC-IHAT}})
-* TokenChallenge Structure: TBD, see {{challenge-binding}}
-* Publicly Verifiable: Y
-* Public Metadata: Y, `ctx_iss`
-* Private Metadata: N
-* Nk: TBD, depends on the Anchor set size
-* Nid: TBD
-* Change Controller: IETF
-* Reference: {{ec-ihat}}
-* Notes: The grant takes two request/response exchanges with the Anchor.
-
-### Longfellow {#iana-longfellow}
-
-* Value: TBD
-* Name: Longfellow
-* Token Structure: TBD
-* Token Key Encoding: TBD
-* TokenChallenge Structure: TBD, see {{challenge-binding}}
-* Publicly Verifiable: Y
-* Public Metadata: N
-* Private Metadata: N
-* Nk: TBD
-* Nid: TBD
-* Change Controller: IETF
-* Reference: {{longfellow}}
-* Notes: The grant is out of band.
+| Value | Name       | Publicly Verifiable | Notes                  | Reference      |
+|:------|:-----------|:--------------------|:-----------------------|:---------------|
+| TBD   | EC-IHAT    | Y                   | Two grant exchanges    | {{ec-ihat}}    |
+| TBD   | Longfellow | Y                   | Grant is out of band   | {{longfellow}} |
+{: #endorsement-types title="Candidate Privacy Pass Token Types"}
 
 ## MOLE Credential Types
 
