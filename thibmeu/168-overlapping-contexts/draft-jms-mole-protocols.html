@@ -2339,9 +2339,11 @@ ctx_cred = credential_context || I2OSP(L, 1)
 <p id="section-5.2.1-5">which includes <code>L</code> as <span>[<a href="#EC-ACT" class="cite xref">EC-ACT</a>]</span> recommends. A Moderator expires every
 outstanding Credential under a key by retiring its <code>credential_context</code>,
 without changing the key. A refund is issued under the context of the spent
-Credential, so balances do not carry over to a new context. A Moderator
-<span class="bcp14">SHOULD</span> accept both the old and successor credential contexts during a
-transition period.
+Credential, so balances do not carry over to a new context. Moderators can
+accept old and new credential contexts during a transition period to ensure
+a seamless transition across clients. Dropping support for an old credential
+context also drops support for clients which have not discovered the new
+credential context.
 Clients obtain Credentials under the new context through Redeem &amp; Issue;
 this document does not specify balance migration.<a href="#section-5.2.1-5" class="pilcrow">¶</a></p>
 <p id="section-5.2.1-6">A Moderator <span class="bcp14">MAY</span> have several active keys, for instance during a rotation. It
@@ -3515,7 +3517,7 @@ remain to be specified.<a href="#section-9.3-3.1.1" class="pilcrow">¶</a></p>
 <dl class="references">
 <dt id="ARCHITECTURE">[ARCHITECTURE]</dt>
         <dd>
-<span class="refAuthor">Schlesinger, S.</span>, <span class="refAuthor">Jackson, D.</span>, and <span class="refAuthor">T. Meunier</span>, <span class="refTitle">"Moderation of unLinkable Endorsements (MoLE) Architecture"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-jms-mole-architecture-00</span>, <time datetime="2026-07-06" class="refDate">6 July 2026</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-jms-mole-architecture-00">https://datatracker.ietf.org/doc/html/draft-jms-mole-architecture-00</a>&gt;</span>. </dd>
+<span class="refAuthor">Schlesinger, S.</span>, <span class="refAuthor">Jackson, D.</span>, and <span class="refAuthor">T. Meunier</span>, <span class="refTitle">"Moderation of unLinkable Endorsements (MOLE) Architecture"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-jms-mole-architecture-01</span>, <time datetime="2026-11-02" class="refDate">2 November 2026</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-jms-mole-architecture-01">https://datatracker.ietf.org/doc/html/draft-jms-mole-architecture-01</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="CDDL">[CDDL]</dt>
         <dd>

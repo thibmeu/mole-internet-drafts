@@ -840,10 +840,13 @@ FinalizeUpdate(presentation_state, update, configuration)
    outstanding Credential under a key by retiring its
    credential_context, without changing the key.  A refund is issued
    under the context of the spent Credential, so balances do not carry
-   over to a new context.  A Moderator SHOULD accept both the old and
-   successor credential contexts during a transition period.  Clients
-   obtain Credentials under the new context through Redeem & Issue; this
-   document does not specify balance migration.
+   over to a new context.  Moderators can accept old and new credential
+   contexts during a transition period to ensure a seamless transition
+   across clients.  Dropping support for an old credential context also
+   drops support for clients which have not discovered the new
+   credential context.  Clients obtain Credentials under the new context
+   through Redeem & Issue; this document does not specify balance
+   migration.
 
    A Moderator MAY have several active keys, for instance during a
    rotation.  It MUST ensure that no two active keys share a
@@ -1680,10 +1683,10 @@ FinalizeUpdate(presentation_state, update, configuration)
 
    [ARCHITECTURE]
               Schlesinger, S., Jackson, D., and T. Meunier, "Moderation
-              of unLinkable Endorsements (MoLE) Architecture", Work in
-              Progress, Internet-Draft, draft-jms-mole-architecture-00,
-              6 July 2026, <https://datatracker.ietf.org/doc/html/draft-
-              jms-mole-architecture-00>.
+              of unLinkable Endorsements (MOLE) Architecture", Work in
+              Progress, Internet-Draft, draft-jms-mole-architecture-01,
+              2 November 2026, <https://datatracker.ietf.org/doc/html/
+              draft-jms-mole-architecture-01>.
 
    [CDDL]     Birkholz, H., Vigano, C., and C. Bormann, "Concise Data
               Definition Language (CDDL): A Notational Convention to
